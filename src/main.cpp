@@ -21,10 +21,39 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <memory.hpp>
 #include <cpu.hpp>
+
+void testLoadImmediate(chip8::Memory & memory, chip8::Cpu & cpu)
+{
+    uint16_t code[] = { 0xAB6A };
+
+    memory.loadFromList(code, sizeof(code));
+
+    cpu.reset();
+    cpu.tick();
+    cpu.printTrace();
+}
+
+void testLoadRegister(chip8::Memory & memory, chip8::Cpu & cpu)
+{
+    uint16_t code[] = { 0xAB6A, 0xA08C };
+
+    memory.loadFromList(code, sizeof(code));
+
+    cpu.reset();
+    cpu.tick();
+    cpu.tick();
+    cpu.printTrace();
+}
 
 int main(int argc, char * argv[])
 {
+    chip8::Memory memory;
+    chip8::Cpu cpu(memory);
+
+    testLoadImmediate(memory, cpu);
+    testLoadRegister(memory, cpu);
 
     return 0;
 }

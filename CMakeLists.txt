@@ -1,23 +1,25 @@
 cmake_minimum_required(VERSION 3.8)
-project(cmake_exec LANGUAGES CXX)
+project(chip8 LANGUAGES CXX)
 
 # For clang tooling
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Create executable target
-add_executable(cmake_exec
+add_executable(chip8
     src/main.cpp
+    src/memory.hpp
+    src/memory.cpp
     src/cpu.hpp
     src/cpu.cpp
 )
 
-target_include_directories(cmake_exec
+target_include_directories(chip8
     PRIVATE
         ./src
 )
 
 # Add custom target to copy compile_commands.json at project root
-add_custom_target(cmake_exec_db
+add_custom_target(chip8_db
     ALL
     COMMAND
         ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/compile_commands.json

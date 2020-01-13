@@ -21,30 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef CHIP8_MEMORY_HPP
-#define CHIP8_MEMORY_HPP
+#ifndef CHIP8_CORE_HPP
+#define CHIP8_CORE_HPP
 
-#include <core.hpp>
+#include <cstddef>
+#include <cstdint>
+
+using std::size_t;
 
 namespace chip8 {
 
-/// @brief Memory class.
-class Memory
-{
-    public:
-        static constexpr uint16_t MEMORY_SIZE = 4096;
-        static constexpr uint16_t START_POINT = 0x200;
-
-        void loadFromFile(const char * filename);
-        void loadFromList(uint16_t * opcodeList, uint16_t count);
-
-        uint16_t getOpcode(uint16_t address);
-        uint8_t  getData(uint16_t address);
-
-    private:
-        uint8_t memory_[MEMORY_SIZE];
-};
-
 }  // chip8
 
-#endif  // CHIP8_MEMORY_HPP
+#endif  // CHIP8_CORE_HPP
