@@ -33,7 +33,8 @@ const Cpu::OpcodeDecoder::OpcodeFunc Cpu::OpcodeDecoder::dispatch_[] = {
     &Cpu::opcodeLoadRegister,
     &Cpu::opcodeLoadIRegister,
     &Cpu::opcodeLoadDelayTimerFromRegister,
-    &Cpu::opcodeLoadRegisterFromDelayTimer
+    &Cpu::opcodeLoadRegisterFromDelayTimer,
+    &Cpu::opcodeLoadSoundTimerFromRegister
 };
 
 /// @brief Construct an opcode decoder.
@@ -79,6 +80,15 @@ void Cpu::OpcodeDecoder::decode(uint16_t opcode)
                 // LD Vx,DT
                 case 0x0007:
                     index = 4;
+                    break;
+
+                // LD ST,Vx
+                case 0x018:
+                    index = 5;
+                    break;
+
+                default:
+                    break;
             }
             break;
 
@@ -121,7 +131,7 @@ void Cpu::reset()
 /// @brief Process a cpu tick.
 void Cpu::tick()
 {
-    opcode_ = memory_.loadOpcode(regs_.pc);
+    opcode_ = memory_.load<uint16_t>(regs_.pc);
     regs_.pc += PC_INCR;
 
     if (regs_.dt > 0)
@@ -129,8 +139,12 @@ void Cpu::tick()
         --regs_.dt;
     }
 
-    opcodeDecoder_.decode(opcode_);
+    if (regs_.st > 0)
+    {
+        --regs_.st;
+    }
 
+    opcodeDecoder_.decode(opcode_);
 }
 
 /// @brief Dump CPU register context.
@@ -178,7 +192,7 @@ void Cpu::opcodeLoadDelayTimerFromRegister()
 
     regs_.dt = regs_.vx[regSrc];
 }
-/// @brief Load delay timer from register.
+/// @brief Load register from delay timer.
 ///
 /// Opcode Fx07 (LD Vx,DT)
 void Cpu::opcodeLoadRegisterFromDelayTimer()
@@ -186,6 +200,16 @@ void Cpu::opcodeLoadRegisterFromDelayTimer()
     uint8_t regDest = (opcode_ >> 8) & 0xF;
 
     regs_.vx[regDest] = regs_.dt;
+}
+
+/// @brief Load sound timer from register.
+///
+/// Opcode Fx18 (LD ST,Vx)
+void Cpu::opcodeLoadSoundTimerFromRegister()
+{
+    uint8_t regSrc = (opcode_ >> 8) & 0xF;
+
+    regs_.st = regs_.vx[regSrc];
 }
 
 }  // chip8

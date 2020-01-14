@@ -27,46 +27,43 @@
 
 namespace chip8 {
 
-/// @brief Store bytes to memory.
+/// @brief Store program from 8-bit byte list.
 ///
-/// @param program Program buffer to copy to memory.
-/// @param size    Program buffer size.
-void Memory::storeBytes(uint8_t * program, size_t size)
+/// @param program Reference to program buffer.
+void Memory::storeProgram(Bytes & program)
 {
-    std::memcpy(memory_ + START_POINT, program, size);
+    std::memcpy(memory_.data() + START_POINT, program.data(), program.size());
 }
 
-/// @brief Store opcodes.
+/// @brief Store program from 16-bit word list.
 ///
-/// @param opcodes     Store opcodes list to memory.
-/// @param opcodeCount Opcode count from opcodes list.
-void Memory::storeOpcodes(uint16_t * opcodes, uint16_t opcodeCount)
+/// @param program Reference to program buffer.
+void Memory::storeProgram(Words & program, Endian endian)
 {
-    for (uint16_t index = 0; index < opcodeCount; ++index)
+    for (uint16_t index = 0; index < program.size(); ++index)
     {
         uint16_t address = START_POINT + 2 * index;
 
-        memory_[address    ] = (opcodes[index] >> 8) & 0xFF;
-        memory_[address + 1] = opcodes[index] & 0xFF;
+        switch (endian)
+        {
+            case Endian::LITTLE:
+                memory_[address    ] = (program[index] >> 8) & 0xFF;
+                memory_[address + 1] = program[index] & 0xFF;
+                break;
+            case Endian::BIG:
+                memory_[address    ] = program[index] & 0xFF;
+                memory_[address + 1] = (program[index] >> 8) & 0xFF;
+                break;
+        }
     }
 }
 
-void Memory::storeData(uint16_t address, uint8_t data)
-{
-    memory_[address] = data;
-}
-
-void Memory::storeData(uint16_t address, uint16_t data)
-{
-    memory_[address++] = data & 0xFF;
-    memory_[address  ] = (data >> 8) & 0xFF;
-}
-
-/// @brief Load opcode from memory address.
+/// @brief Load 16-bit word from memory address.
 ///
 /// @param address Memory address to load as opcode.
 /// @return Opcode converted from big-endian to little-endian.
-uint16_t Memory::loadOpcode(uint16_t address)
+template<>
+uint16_t Memory::load(uint16_t address)
 {
     uint16_t opcode = 0x0000;
 
@@ -80,7 +77,8 @@ uint16_t Memory::loadOpcode(uint16_t address)
 ///
 /// @param address Memory address to load data.
 /// @return Data byte.
-uint8_t Memory::loadData(uint16_t address)
+template<>
+uint8_t Memory::load(uint16_t address)
 {
     return memory_[address];
 }

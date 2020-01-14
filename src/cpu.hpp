@@ -92,6 +92,7 @@ class Cpu
         void opcodeLoadIRegister();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
+        void opcodeLoadSoundTimerFromRegister();
 
         /// @brief Main memory instance.
         Memory & memory_;

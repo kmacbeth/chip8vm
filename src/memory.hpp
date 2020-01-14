@@ -24,6 +24,8 @@
 #ifndef CHIP8_MEMORY_HPP
 #define CHIP8_MEMORY_HPP
 
+#include <array>
+#include <vector>
 #include <core.hpp>
 
 namespace chip8 {
@@ -32,23 +34,25 @@ namespace chip8 {
 class Memory
 {
     public:
+        using Bytes = std::vector<uint8_t>;
+        using Words = std::vector<uint16_t>;
+
+        enum class Endian { BIG, LITTLE };
+
         /// @brief Total memory size.
         static constexpr uint16_t MEMORY_SIZE = 4096;
         /// @brief Program start point in memory.
         static constexpr uint16_t START_POINT = 0x200;
 
-        void storeBytes(uint8_t * program, size_t size);
-        void storeOpcodes(uint16_t * opcodes, uint16_t opcodeCount);
+        void storeProgram(Bytes & program);
+        void storeProgram(Words & program, Endian endian);
 
-        void storeData(uint16_t address, uint8_t  data);
-        void storeData(uint16_t address, uint16_t data);
-
-        uint16_t loadOpcode(uint16_t address);
-        uint8_t  loadData(uint16_t address);
+        template<typename TYPE>
+        TYPE load(uint16_t address);
 
     private:
         /// @brief Memory buffer in bytes.
-        uint8_t memory_[MEMORY_SIZE];
+        std::array<uint8_t, MEMORY_SIZE> memory_;
 };
 
 }  // chip8
