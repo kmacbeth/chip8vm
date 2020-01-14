@@ -97,15 +97,11 @@ void Cpu::OpcodeDecoder::decode(uint16_t opcode)
 /// @param memory Reference to memory (4K).
 Cpu::Cpu(Memory & memory)
     : memory_(memory)
-    , vx_()
-    , i_(0)
+    , regs_()
     , opcodeDecoder_(*this)
     , opcode_(0x0000)
-    , pc_(Memory::START_POINT)
-    , sp_(0)
-    , dt_(0)
-    , st_(0)
 {
+    reset();
 }
 
 
@@ -114,65 +110,33 @@ Cpu::Cpu(Memory & memory)
 /// Reset CPU states, such as program counter and registers.
 void Cpu::reset()
 {
-    pc_ = Memory::START_POINT;
-    sp_ = 0;
-    dt_ = 0;
-    st_ = 0;
-
-    std::memset(vx_, 0, sizeof(vx_));
+    regs_.pc = Memory::START_POINT;
+    std::memset(regs_.vx, 0, sizeof(regs_.vx));
+    regs_.sp = 0;
+    regs_.i  = 0;
+    regs_.dt = 0;
+    regs_.st = 0;
 }
 
 /// @brief Process a cpu tick.
 void Cpu::tick()
 {
-    opcode_ = memory_.loadOpcode(pc_);
-    pc_ += PC_INCR;
+    opcode_ = memory_.loadOpcode(regs_.pc);
+    regs_.pc += PC_INCR;
 
-    if (dt_ > 0)
+    if (regs_.dt > 0)
     {
-        --dt_;
+        --regs_.dt;
     }
-
-    // std::printf("\n================\nOpcode: %04X\n================\n", opcode_);
 
     opcodeDecoder_.decode(opcode_);
 
 }
 
-/// @brief Show a debug trace.
-void Cpu::printTrace() const
+/// @brief Dump CPU register context.
+Cpu::RegContext Cpu::dumpRegContext()
 {
-    std::printf("\nGeneral Purpose Registers\n"
-                "-------------------------\n");
-
-    for (uint8_t regIndex = 0; regIndex < REG_COUNT; ++regIndex)
-    {
-        std::printf("V%01X = %02X", regIndex, vx_[regIndex]);
-        std::printf(regIndex % 8 == 7 ? "\n" : " | ");
-    }
-
-    std::printf("\nSpecific Purpose Registers\n"
-                "--------------------------\n");
-
-    std::printf("PC = %04X | SP = %02X | I = %04X | DT = %02X | ST = %02X\n", pc_, sp_, i_, dt_, st_);
-}
-
-void Cpu::dumpRegisters()
-{
-    const size_t DUMP_START = 0xFE0;
-
-    uint16_t address = DUMP_START;
-
-    memory_.storeData(address, pc_);
-    memory_.storeData(address + 2, i_);
-    memory_.storeData(address + 4, sp_);
-    memory_.storeData(address + 5, dt_);
-    memory_.storeData(address + 6, st_);
-
-    for (uint32_t i = 0; i < REG_COUNT; ++i)
-    {
-        memory_.storeData(address + 0x10 + i, vx_[i]);
-    }
+    return regs_;
 }
 
 /// @brief Load a number to register Vx
@@ -183,7 +147,7 @@ void Cpu::opcodeLoadNumber()
     uint8_t regDest = (opcode_ & 0x0F00) >> 8;
     uint8_t number  = (opcode_ & 0x00FF);
 
-    vx_[regDest] = number;
+    regs_.vx[regDest] = number;
 }
 
 /// @brief Load register Vy to register Vx
@@ -194,7 +158,7 @@ void Cpu::opcodeLoadRegister()
     uint8_t regDest = (opcode_ >> 8) & 0xF;
     uint8_t regSrc  = (opcode_ >> 4) & 0xF;
 
-    vx_[regDest] = vx_[regSrc];
+    regs_.vx[regDest] = regs_.vx[regSrc];
 }
 
 /// @brief Load I register with 12-bit address
@@ -202,7 +166,7 @@ void Cpu::opcodeLoadRegister()
 /// Opcode Annn (LD I,addr)
 void Cpu::opcodeLoadIRegister()
 {
-    i_ = (opcode_ & 0xFFF);
+    regs_.i = (opcode_ & 0xFFF);
 }
 
 /// @brief Load delay timer from register.
@@ -212,7 +176,7 @@ void Cpu::opcodeLoadDelayTimerFromRegister()
 {
     uint8_t regSrc = (opcode_ >> 8) & 0xF;
 
-    dt_ = vx_[regSrc];
+    regs_.dt = regs_.vx[regSrc];
 }
 /// @brief Load delay timer from register.
 ///
@@ -221,7 +185,7 @@ void Cpu::opcodeLoadRegisterFromDelayTimer()
 {
     uint8_t regDest = (opcode_ >> 8) & 0xF;
 
-    vx_[regDest] = dt_;
+    regs_.vx[regDest] = regs_.dt;
 }
 
 }  // chip8

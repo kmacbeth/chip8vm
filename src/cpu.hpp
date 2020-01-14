@@ -24,7 +24,7 @@
 #ifndef CHIP8_CPU_HPP
 #define CHIP8_CPU_HPP
 
-#include <cstdint>
+#include <core.hpp>
 
 namespace chip8 {
 
@@ -34,17 +34,37 @@ class Memory;
 class Cpu
 {
     public:
+        /// @brief Total registers count.
+        static constexpr uint8_t REG_COUNT = 16;
+
+        /// @brief Register context for debugging/testing
+        struct RegContext
+        {
+            /// @brief Program counter.
+            uint16_t pc;
+
+            /// @brief General purpose registers.
+            uint8_t  vx[REG_COUNT];
+            /// @brief Stack pointer.
+            uint8_t  sp;
+
+            /// @brief I register.
+            uint16_t i;
+            /// @brief Delay register.
+            uint8_t  dt;
+            /// @brief Sound register.
+            uint8_t  st;
+        };
+
         Cpu(Memory & memory);
 
         void reset();
         void tick();
 
-        void printTrace() const;
-        void dumpRegisters();
+        // Custom debugging/testing
+        RegContext dumpRegContext();
 
     private:
-        /// @brief Total registers count.
-        static constexpr uint8_t  REG_COUNT = 16;
         /// @brief Program counter increment.
         static constexpr uint16_t PC_INCR = 2;
         /// @brief Stack size.
@@ -75,24 +95,13 @@ class Cpu
 
         /// @brief Main memory instance.
         Memory & memory_;
-        /// @brief General purpose registers.
-        uint8_t  vx_[REG_COUNT];
-        /// @brief I register.
-        uint16_t i_;
+        /// @brief Register context.
+        RegContext regs_;
 
         /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
         /// @brief Current opcode
         uint16_t opcode_;
-        /// @brief Program counter.
-        uint16_t pc_;
-        /// @brief Stack pointer.
-        uint8_t  sp_;
-
-        /// @brief Delay register.
-        uint8_t dt_;
-        /// @brief Sound register.
-        uint8_t st_;
 };
 
 }  // chip8

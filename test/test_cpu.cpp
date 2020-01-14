@@ -9,12 +9,14 @@ using OpcodeList = std::vector<uint16_t>;
 class Chip8Vm
 {
         chip8::Memory memory_;
-        chip8::Cpu    cpu_;
+        chip8::Cpu cpu_;
+        chip8::Cpu::RegContext cpuRegCtx_;
 
     public:
         Chip8Vm()
             : memory_()
             , cpu_(memory_)
+            , cpuRegCtx_()
         {
         }
 
@@ -26,23 +28,14 @@ class Chip8Vm
         void run()
         {
             cpu_.tick();
-            cpu_.dumpRegisters();
+            cpuRegCtx_ = cpu_.dumpRegContext();
         }
 
-        uint8_t getMemoryByte(uint16_t address)
+        chip8::Cpu::RegContext const& getCpuRegCtx() const
         {
-            return memory_.loadData(address);
+            return cpuRegCtx_;
         }
 
-        uint16_t getMemoryWord(uint16_t address)
-        {
-            uint16_t data = 0;
-
-            data |= memory_.loadData(address);
-            data |= (memory_.loadData(address+1) << 8);
-
-            return data;
-        }
 };
 
 
@@ -59,7 +52,7 @@ TEST_CASE("Test CPU opcodes", "[cpu]")
         vm.loadCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFFA) == 0xAB);
+        REQUIRE(vm.getCpuRegCtx().vx[0xA] == 0xAB);
     }
 
     SECTION("Load Vy register to Vx register")
@@ -72,10 +65,10 @@ TEST_CASE("Test CPU opcodes", "[cpu]")
         vm.loadCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFFA) == 0xAB);
+        REQUIRE(vm.getCpuRegCtx().vx[0xA] == 0xAB);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFFC) == 0xAB);
+        REQUIRE(vm.getCpuRegCtx().vx[0xC] == 0xAB);
     }
 
     SECTION("Load address to I register")
@@ -87,7 +80,7 @@ TEST_CASE("Test CPU opcodes", "[cpu]")
         vm.loadCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.getMemoryWord(0xFE2) == 0x123);
+        REQUIRE(vm.getCpuRegCtx().i == 0x123);
     }
 
     SECTION("Load Vx register to DT register")
@@ -100,10 +93,10 @@ TEST_CASE("Test CPU opcodes", "[cpu]")
         vm.loadCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFF3) == 0x10);
+        REQUIRE(vm.getCpuRegCtx().vx[0x3] == 0x10);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFE5) == 0x10);
+        REQUIRE(vm.getCpuRegCtx().dt == 0x10);
     }
 
     SECTION("Load DT register to Vx register")
@@ -116,9 +109,9 @@ TEST_CASE("Test CPU opcodes", "[cpu]")
         vm.loadCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFF4) == 0x10);
+        REQUIRE(vm.getCpuRegCtx().vx[0x4] == 0x10);
 
         vm.run();
-        REQUIRE(vm.getMemoryByte(0xFE4) == 0x00);
+        REQUIRE(vm.getCpuRegCtx().vx[0x4] == 0x00);
     }
 }
