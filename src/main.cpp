@@ -24,27 +24,51 @@
 #include <memory.hpp>
 #include <cpu.hpp>
 
-void testLoadImmediate(chip8::Memory & memory, chip8::Cpu & cpu)
+void runCpuTicks(chip8::Memory & memory, chip8::Cpu & cpu, uint16_t * code, uint16_t count)
 {
-    uint16_t code[] = { 0xAB6A };
-
-    memory.loadFromList(code, sizeof(code));
+    memory.storeOpcodes(code, count);
 
     cpu.reset();
-    cpu.tick();
-    cpu.printTrace();
+    for (uint32_t index = 0; index < count; ++index)
+    {
+        cpu.tick();
+        cpu.printTrace();
+    }
+}
+
+void testLoadNumber(chip8::Memory & memory, chip8::Cpu & cpu)
+{
+    uint16_t code[] = {
+        0x6AAB   // LD VA,0xAB
+    };
+    runCpuTicks(memory, cpu, code, sizeof(code) / 2);
 }
 
 void testLoadRegister(chip8::Memory & memory, chip8::Cpu & cpu)
 {
-    uint16_t code[] = { 0xAB6A, 0xA08C };
+    uint16_t code[] = {
+        0x6AAB,  // LD VA,0xAB
+        0x8CA0   // LD VC,VA
+    };
+    runCpuTicks(memory, cpu, code, sizeof(code) / 2);
+}
 
-    memory.loadFromList(code, sizeof(code));
+void testLoadIRegister(chip8::Memory & memory, chip8::Cpu & cpu)
+{
+    uint16_t code[] = {
+        0xA123   // LD I,123
+    };
+    runCpuTicks(memory, cpu, code, sizeof(code) / 2);
+}
 
-    cpu.reset();
-    cpu.tick();
-    cpu.tick();
-    cpu.printTrace();
+void testLoadDelayTimer(chip8::Memory & memory, chip8::Cpu & cpu)
+{
+    uint16_t code[] = {
+        0x6310,  // LD V3,0x10
+        0xF315,  // LD DT,V3
+        0xF407,  // LD V4,DT
+    };
+    runCpuTicks(memory, cpu, code, sizeof(code) / 2);
 }
 
 int main(int argc, char * argv[])
@@ -52,8 +76,10 @@ int main(int argc, char * argv[])
     chip8::Memory memory;
     chip8::Cpu cpu(memory);
 
-    testLoadImmediate(memory, cpu);
+    testLoadNumber(memory, cpu);
     testLoadRegister(memory, cpu);
+    testLoadIRegister(memory, cpu);
+    testLoadDelayTimer(memory, cpu);
 
     return 0;
 }

@@ -21,32 +21,68 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <cstdio>
 #include <cstring>
 #include "memory.hpp"
 
 namespace chip8 {
 
-void Memory::loadFromFile(const char * filename)
+/// @brief Store bytes to memory.
+///
+/// @param program Program buffer to copy to memory.
+/// @param size    Program buffer size.
+void Memory::storeBytes(uint8_t * program, size_t size)
 {
+    std::memcpy(memory_ + START_POINT, program, size);
 }
 
-void Memory::loadFromList(uint16_t * opcodeList, uint16_t count)
+/// @brief Store opcodes.
+///
+/// @param opcodes     Store opcodes list to memory.
+/// @param opcodeCount Opcode count from opcodes list.
+void Memory::storeOpcodes(uint16_t * opcodes, uint16_t opcodeCount)
 {
-    std::memcpy(memory_ + START_POINT, opcodeList, sizeof(opcodeList) * count);
+    for (uint16_t index = 0; index < opcodeCount; ++index)
+    {
+        uint16_t address = START_POINT + 2 * index;
+
+        memory_[address    ] = (opcodes[index] >> 8) & 0xFF;
+        memory_[address + 1] = opcodes[index] & 0xFF;
+    }
 }
 
-uint16_t Memory::getOpcode(uint16_t address)
+void Memory::storeData(uint16_t address, uint8_t data)
 {
-    uint16_t opcode =
-        (static_cast<uint16_t>(memory_[address]) << 8) |
-        (static_cast<uint16_t>(memory_[address + 1]));
+    memory_[address] = data;
+}
+
+void Memory::storeData(uint16_t address, uint16_t data)
+{
+    memory_[address++] = data & 0xFF;
+    memory_[address  ] = (data >> 8) & 0xFF;
+}
+
+/// @brief Load opcode from memory address.
+///
+/// @param address Memory address to load as opcode.
+/// @return Opcode converted from big-endian to little-endian.
+uint16_t Memory::loadOpcode(uint16_t address)
+{
+    uint16_t opcode = 0x0000;
+
+    opcode |= static_cast<uint16_t>(memory_[address++]) << 8;
+    opcode |= static_cast<uint16_t>(memory_[address]);
 
     return opcode;
 }
 
-uint8_t Memory::getData(uint16_t address)
+/// @brief Load data from memory address.
+///
+/// @param address Memory address to load data.
+/// @return Data byte.
+uint8_t Memory::loadData(uint16_t address)
 {
-    return 0;
+    return memory_[address];
 }
 
 }  // chip8

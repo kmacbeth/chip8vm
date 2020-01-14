@@ -28,15 +28,20 @@
 
 namespace chip8 {
 
+const Cpu::OpcodeDecoder::OpcodeFunc Cpu::OpcodeDecoder::dispatch_[] = {
+    &Cpu::opcodeLoadNumber,
+    &Cpu::opcodeLoadRegister,
+    &Cpu::opcodeLoadIRegister,
+    &Cpu::opcodeLoadDelayTimerFromRegister,
+    &Cpu::opcodeLoadRegisterFromDelayTimer
+};
+
 /// @brief Construct an opcode decoder.
 ///
 /// @param cpu Reference to the CPU instance.
 Cpu::OpcodeDecoder::OpcodeDecoder(Cpu & cpu)
     : cpu_(cpu)
-    , dispatch_()
 {
-    dispatch_[0] = &Cpu::opcodeLoadImmediate;
-    dispatch_[1] = &Cpu::opcodeLoadRegister;
 }
 
 /// @brief Decode opcode.
@@ -56,6 +61,26 @@ void Cpu::OpcodeDecoder::decode(uint16_t opcode)
         // LD Vx,Vy
         case 0x8000:
             index = 1;
+            break;
+
+        // LD I,addr
+        case 0xA000:
+            index = 2;
+            break;
+
+        case 0xF000:
+            switch (opcode & 0x00FF)
+            {
+                // LD DT,Vx
+                case 0x0015:
+                    index = 3;
+                    break;
+
+                // LD Vx,DT
+                case 0x0007:
+                    index = 4;
+            }
+            break;
 
         default:
             break;
@@ -73,9 +98,13 @@ void Cpu::OpcodeDecoder::decode(uint16_t opcode)
 Cpu::Cpu(Memory & memory)
     : memory_(memory)
     , vx_()
-    , pc_(Memory::START_POINT)
+    , i_(0)
     , opcodeDecoder_(*this)
     , opcode_(0x0000)
+    , pc_(Memory::START_POINT)
+    , sp_(0)
+    , dt_(0)
+    , st_(0)
 {
 }
 
@@ -86,6 +115,9 @@ Cpu::Cpu(Memory & memory)
 void Cpu::reset()
 {
     pc_ = Memory::START_POINT;
+    sp_ = 0;
+    dt_ = 0;
+    st_ = 0;
 
     std::memset(vx_, 0, sizeof(vx_));
 }
@@ -93,29 +125,60 @@ void Cpu::reset()
 /// @brief Process a cpu tick.
 void Cpu::tick()
 {
-    opcode_ = memory_.getOpcode(pc_);
+    opcode_ = memory_.loadOpcode(pc_);
     pc_ += PC_INCR;
 
-    std::printf("Opcode: %04X\n", opcode_);
+    if (dt_ > 0)
+    {
+        --dt_;
+    }
+
+    // std::printf("\n================\nOpcode: %04X\n================\n", opcode_);
 
     opcodeDecoder_.decode(opcode_);
+
 }
 
 /// @brief Show a debug trace.
 void Cpu::printTrace() const
 {
-    std::printf("Registers VX Traces\n"
-                "-------------------\n");
+    std::printf("\nGeneral Purpose Registers\n"
+                "-------------------------\n");
 
     for (uint8_t regIndex = 0; regIndex < REG_COUNT; ++regIndex)
     {
         std::printf("V%01X = %02X", regIndex, vx_[regIndex]);
-        std::printf(regIndex % 4 == 3 ? "\n" : " | ");
+        std::printf(regIndex % 8 == 7 ? "\n" : " | ");
+    }
+
+    std::printf("\nSpecific Purpose Registers\n"
+                "--------------------------\n");
+
+    std::printf("PC = %04X | SP = %02X | I = %04X | DT = %02X | ST = %02X\n", pc_, sp_, i_, dt_, st_);
+}
+
+void Cpu::dumpRegisters()
+{
+    const size_t DUMP_START = 0xFE0;
+
+    uint16_t address = DUMP_START;
+
+    memory_.storeData(address, pc_);
+    memory_.storeData(address + 2, i_);
+    memory_.storeData(address + 4, sp_);
+    memory_.storeData(address + 5, dt_);
+    memory_.storeData(address + 6, st_);
+
+    for (uint32_t i = 0; i < REG_COUNT; ++i)
+    {
+        memory_.storeData(address + 0x10 + i, vx_[i]);
     }
 }
 
 /// @brief Load a number to register Vx
-void Cpu::opcodeLoadImmediate()
+///
+/// Opcode 6xkk (LD Vx,byte)
+void Cpu::opcodeLoadNumber()
 {
     uint8_t regDest = (opcode_ & 0x0F00) >> 8;
     uint8_t number  = (opcode_ & 0x00FF);
@@ -123,13 +186,42 @@ void Cpu::opcodeLoadImmediate()
     vx_[regDest] = number;
 }
 
-// @brief Load register Vy to register Vx
+/// @brief Load register Vy to register Vx
+///
+/// Opcode 8xy0 (LD Vx,Vy)
 void Cpu::opcodeLoadRegister()
 {
-    uint8_t regDest = (opcode_ & 0x0F00) >> 8;
-    uint8_t regSrc  = (opcode_ & 0x00F0) >> 4;
+    uint8_t regDest = (opcode_ >> 8) & 0xF;
+    uint8_t regSrc  = (opcode_ >> 4) & 0xF;
 
     vx_[regDest] = vx_[regSrc];
+}
+
+/// @brief Load I register with 12-bit address
+///
+/// Opcode Annn (LD I,addr)
+void Cpu::opcodeLoadIRegister()
+{
+    i_ = (opcode_ & 0xFFF);
+}
+
+/// @brief Load delay timer from register.
+///
+/// Opcode Fx15 (LD DT,Vx)
+void Cpu::opcodeLoadDelayTimerFromRegister()
+{
+    uint8_t regSrc = (opcode_ >> 8) & 0xF;
+
+    dt_ = vx_[regSrc];
+}
+/// @brief Load delay timer from register.
+///
+/// Opcode Fx07 (LD Vx,DT)
+void Cpu::opcodeLoadRegisterFromDelayTimer()
+{
+    uint8_t regDest = (opcode_ >> 8) & 0xF;
+
+    vx_[regDest] = dt_;
 }
 
 }  // chip8

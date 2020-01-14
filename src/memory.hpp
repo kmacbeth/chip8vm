@@ -32,16 +32,22 @@ namespace chip8 {
 class Memory
 {
     public:
+        /// @brief Total memory size.
         static constexpr uint16_t MEMORY_SIZE = 4096;
+        /// @brief Program start point in memory.
         static constexpr uint16_t START_POINT = 0x200;
 
-        void loadFromFile(const char * filename);
-        void loadFromList(uint16_t * opcodeList, uint16_t count);
+        void storeBytes(uint8_t * program, size_t size);
+        void storeOpcodes(uint16_t * opcodes, uint16_t opcodeCount);
 
-        uint16_t getOpcode(uint16_t address);
-        uint8_t  getData(uint16_t address);
+        void storeData(uint16_t address, uint8_t  data);
+        void storeData(uint16_t address, uint16_t data);
+
+        uint16_t loadOpcode(uint16_t address);
+        uint8_t  loadData(uint16_t address);
 
     private:
+        /// @brief Memory buffer in bytes.
         uint8_t memory_[MEMORY_SIZE];
 };
 

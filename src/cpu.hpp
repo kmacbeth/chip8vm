@@ -30,7 +30,7 @@ namespace chip8 {
 
 class Memory;
 
-/// @brief CHIP-8 CPU
+/// @brief Represent the CHIP-8 CPU.
 class Cpu
 {
     public:
@@ -38,13 +38,19 @@ class Cpu
 
         void reset();
         void tick();
+
         void printTrace() const;
+        void dumpRegisters();
 
     private:
+        /// @brief Total registers count.
         static constexpr uint8_t  REG_COUNT = 16;
+        /// @brief Program counter increment.
         static constexpr uint16_t PC_INCR = 2;
+        /// @brief Stack size.
+        static constexpr uint8_t STACK_SIZE = 16;
 
-
+        /// @brief An opcode decoder.
         class OpcodeDecoder
         {
             public:
@@ -55,20 +61,38 @@ class Cpu
             private:
                 using OpcodeFunc = void (Cpu::*)();
 
+                /// @brief Reference to cpu instance.
                 Cpu &      cpu_;
-                OpcodeFunc dispatch_[2];
+                /// @brief Opcode dispatch table.
+                static const OpcodeFunc dispatch_[];
         };
 
-        void opcodeLoadImmediate();
+        void opcodeLoadNumber();
         void opcodeLoadRegister();
+        void opcodeLoadIRegister();
+        void opcodeLoadDelayTimerFromRegister();
+        void opcodeLoadRegisterFromDelayTimer();
 
+        /// @brief Main memory instance.
         Memory & memory_;
-        uint16_t pc_;
-
+        /// @brief General purpose registers.
         uint8_t  vx_[REG_COUNT];
+        /// @brief I register.
+        uint16_t i_;
 
+        /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
-        uint16_t      opcode_;
+        /// @brief Current opcode
+        uint16_t opcode_;
+        /// @brief Program counter.
+        uint16_t pc_;
+        /// @brief Stack pointer.
+        uint8_t  sp_;
+
+        /// @brief Delay register.
+        uint8_t dt_;
+        /// @brief Sound register.
+        uint8_t st_;
 };
 
 }  // chip8
