@@ -9,10 +9,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -26,15 +26,16 @@
 #include <memory.hpp>
 #include "cpu.hpp"
 
+
 namespace chip8 {
 
-const Cpu::OpcodeDecoder::OpcodeFunc Cpu::OpcodeDecoder::dispatch_[] = {
-    &Cpu::opcodeLoadNumber,
-    &Cpu::opcodeLoadRegister,
-    &Cpu::opcodeLoadIRegister,
-    &Cpu::opcodeLoadDelayTimerFromRegister,
-    &Cpu::opcodeLoadRegisterFromDelayTimer,
-    &Cpu::opcodeLoadSoundTimerFromRegister
+const std::unordered_map<uint16_t, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::OpcodeDecoder::opcodeTable_ = {
+    { OPCODE_6XKK, &Cpu::opcodeLoadNumber },
+    { OPCODE_8XY0, &Cpu::opcodeLoadRegister },
+    { OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
+    { OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
+    { OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
+    { OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
 };
 
 /// @brief Construct an opcode decoder.
@@ -48,57 +49,21 @@ Cpu::OpcodeDecoder::OpcodeDecoder(Cpu & cpu)
 /// @brief Decode opcode.
 ///
 /// @param opcode Opcode to decode and execute.
-void Cpu::OpcodeDecoder::decode(uint16_t opcode)
+void Cpu::OpcodeDecoder::decode(Opcode opcode)
 {
-    uint8_t index = 0;
+    uint16_t decodedOpcode = opcode & 0xF000;
 
-    switch(opcode & 0xF000)
+    if (decodedOpcode == 0xF000)
     {
-        // LD Vx,byte
-        case 0x6000:
-            index = 0;
-            break;
-
-        // LD Vx,Vy
-        case 0x8000:
-            index = 1;
-            break;
-
-        // LD I,addr
-        case 0xA000:
-            index = 2;
-            break;
-
-        case 0xF000:
-            switch (opcode & 0x00FF)
-            {
-                // LD DT,Vx
-                case 0x0015:
-                    index = 3;
-                    break;
-
-                // LD Vx,DT
-                case 0x0007:
-                    index = 4;
-                    break;
-
-                // LD ST,Vx
-                case 0x018:
-                    index = 5;
-                    break;
-
-                default:
-                    break;
-            }
-            break;
-
-        default:
-            break;
+        decodedOpcode |= (opcode & 0x00FF);
     }
 
-    OpcodeFunc opcodeCall = dispatch_[index];
+    auto opcodeIterator = opcodeTable_.find(decodedOpcode);
 
-    (cpu_.*opcodeCall)();
+    if (opcodeIterator != opcodeTable_.end())
+    {
+        (cpu_.*(opcodeIterator->second))();
+    }
 }
 
 
@@ -131,7 +96,7 @@ void Cpu::reset()
 /// @brief Process a cpu tick.
 void Cpu::tick()
 {
-    opcode_ = memory_.load<uint16_t>(regs_.pc);
+    opcode_ = memory_.load<Opcode>(regs_.pc);
     regs_.pc += PC_INCR;
 
     if (regs_.dt > 0)

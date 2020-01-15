@@ -1,3 +1,26 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2020 Martin Lafreniere
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #include <catch2/catch.hpp>
 #include <vector>
 
@@ -6,10 +29,10 @@
 
 using OpcodeList = chip8::Memory::Words;
 
-class Chip8Vm
+class Chip8TestVm
 {
     public:
-        Chip8Vm()
+        Chip8TestVm()
             : memory_()
             , cpu_(memory_)
             , cpuRegCtx_()
@@ -39,23 +62,17 @@ class Chip8Vm
 
 };
 
-uint16_t buildOpcodeLoadNumber(uint16_t vxIndex, uint16_t byte)
-{
-    return (0x6000 | ((vxIndex & 0xF) << 8) | (byte & 0xFF));
-}
-
 
 TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 {
-    Chip8Vm vm;
+    Chip8TestVm vm;
 
-    // TODO: do parameterized test to test the 16 registers.
     SECTION("Load number to Vx register")
     {
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0xAB;
 
-        uint16_t loadNumberAB = buildOpcodeLoadNumber(vxIndex, expectedByte);
+        uint16_t loadNumberAB = chip8::opcode6XKK(vxIndex, expectedByte);
 
         OpcodeList opcodes = {
             loadNumberAB   // LD Vx,byte
@@ -72,12 +89,12 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0xAB;
 
-        uint16_t loadNumberAB = buildOpcodeLoadNumber(vxIndex, expectedByte);
-        uint16_t loadReg2Reg  = 0x8000 | (((vxIndex + 1) & 0xF) << 8) | ((vxIndex & 0xF) << 4);
+        uint16_t loadNumberAB = chip8::opcode6XKK(vxIndex, expectedByte);
+        uint16_t loadReg2Reg  = chip8::opcode8XY0(vxIndex + 1, vxIndex);
 
         OpcodeList opcodes = {
             loadNumberAB,  // LD Vx,byte
-            loadReg2Reg    // LD VC,VA
+            loadReg2Reg    // LD Vx,Vy
         };
 
         vm.loadCode(opcodes);
@@ -91,8 +108,10 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Load address to I register")
     {
+        uint16_t loadI123 = chip8::opcodeANNN(0x123);
+
         OpcodeList opcodes = {
-            0xA123   // LD I,123
+            loadI123   // LD I,123
         };
 
         vm.loadCode(opcodes);
@@ -106,8 +125,8 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0x10;
 
-        uint16_t loadNumber10 = buildOpcodeLoadNumber(vxIndex, expectedByte);
-        uint16_t loadReg2DelayTimer = 0xF015 | ((vxIndex & 0xF) << 8);
+        uint16_t loadNumber10 = chip8::opcode6XKK(vxIndex, expectedByte);
+        uint16_t loadReg2DelayTimer = chip8::opcodeFX15(vxIndex);
 
         OpcodeList opcodes = {
             loadNumber10,        // LD Vx,0x10
@@ -128,8 +147,8 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0x10;
 
-        uint16_t loadNumber10 = buildOpcodeLoadNumber(vxIndex, expectedByte);
-        uint16_t loadDelayTimer2Reg = 0xF007 | ((vxIndex & 0xF) << 8);
+        uint16_t loadNumber10 = chip8::opcode6XKK(vxIndex, expectedByte);
+        uint16_t loadDelayTimer2Reg = chip8::opcodeFX07(vxIndex);
 
         OpcodeList opcodes = {
             loadNumber10,        // LD Vx,0x10
@@ -150,11 +169,11 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0x10;
 
-        uint16_t loadNumber10 = buildOpcodeLoadNumber(vxIndex, expectedByte);
-        uint16_t loadReg2SoundTimer = 0xF018 | ((vxIndex & 0xF) << 8);
+        uint16_t loadNumber10 = chip8::opcode6XKK(vxIndex, expectedByte);
+        uint16_t loadReg2SoundTimer = chip8::opcodeFX18(vxIndex);
 
         OpcodeList opcodes = {
-            loadNumber10,  // LD Vx,0x10
+            loadNumber10,        // LD Vx,0x10
             loadReg2SoundTimer,  // LD ST,Vx
         };
 

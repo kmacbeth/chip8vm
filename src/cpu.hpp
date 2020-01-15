@@ -24,7 +24,9 @@
 #ifndef CHIP8_CPU_HPP
 #define CHIP8_CPU_HPP
 
+#include <unordered_map>
 #include <core.hpp>
+#include <opcode.hpp>
 
 namespace chip8 {
 
@@ -76,15 +78,16 @@ class Cpu
             public:
                 OpcodeDecoder(Cpu & cpu);
 
-                void decode(uint16_t opcode);
+                void decode(Opcode opcode);
 
             private:
                 using OpcodeFunc = void (Cpu::*)();
 
-                /// @brief Reference to cpu instance.
-                Cpu &      cpu_;
                 /// @brief Opcode dispatch table.
-                static const OpcodeFunc dispatch_[];
+                static const std::unordered_map<Opcode, OpcodeFunc> opcodeTable_;
+
+                /// @brief Reference to cpu instance.
+                Cpu & cpu_;
         };
 
         void opcodeLoadNumber();
@@ -102,7 +105,7 @@ class Cpu
         /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
         /// @brief Current opcode
-        uint16_t opcode_;
+        Opcode opcode_;
 };
 
 }  // chip8

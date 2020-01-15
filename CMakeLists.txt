@@ -11,6 +11,7 @@ add_executable(chip8
     src/memory.cpp
     src/cpu.hpp
     src/cpu.cpp
+    src/opcode.hpp
 )
 
 target_include_directories(chip8
