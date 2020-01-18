@@ -29,13 +29,15 @@
 
 namespace chip8 {
 
-const std::unordered_map<uint16_t, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::OpcodeDecoder::opcodeTable_ = {
-    { OPCODE_6XKK, &Cpu::opcodeLoadNumber },
-    { OPCODE_8XY0, &Cpu::opcodeLoadRegister },
-    { OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
-    { OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
-    { OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
-    { OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
+const std::unordered_map<opcode::Opcode, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::OpcodeDecoder::opcodeTable_ = {
+    { opcode::OPCODE_00EE, &Cpu::opcodeReturn },
+    { opcode::OPCODE_2NNN, &Cpu::opcodeCall },
+    { opcode::OPCODE_6XKK, &Cpu::opcodeLoadNumber },
+    { opcode::OPCODE_8XY0, &Cpu::opcodeLoadRegister },
+    { opcode::OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
+    { opcode::OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
+    { opcode::OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
+    { opcode::OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
 };
 
 /// @brief Construct an opcode decoder.
@@ -49,7 +51,7 @@ Cpu::OpcodeDecoder::OpcodeDecoder(Cpu & cpu)
 /// @brief Decode opcode.
 ///
 /// @param opcode Opcode to decode and execute.
-void Cpu::OpcodeDecoder::decode(Opcode opcode)
+void Cpu::OpcodeDecoder::decode(opcode::Opcode opcode)
 {
     uint16_t decodedOpcode = opcode & 0xF000;
 
@@ -96,7 +98,7 @@ void Cpu::reset()
 /// @brief Process a cpu tick.
 void Cpu::tick()
 {
-    opcode_ = memory_.load<Opcode>(regs_.pc);
+    opcode_ = memory_.load<opcode::Opcode>(regs_.pc);
     regs_.pc += PC_INCR;
 
     if (regs_.dt > 0)
@@ -116,6 +118,28 @@ void Cpu::tick()
 Cpu::RegContext Cpu::dumpRegContext()
 {
     return regs_;
+}
+
+/// @brief Return from subroutine.
+///
+/// Opcode 00EE (RET)
+void Cpu::opcodeReturn()
+{
+    if (regs_.sp > 0)
+    {
+        --regs_.sp;
+    }
+}
+
+/// @brief Return from subroutine.
+///
+/// Opcode 2NNN (call addr)
+void Cpu::opcodeCall()
+{
+    uint16_t address = (opcode_ & 0xFFF);
+
+    regs_.stack[regs_.sp] = regs_.pc;
+    regs_.pc = address;
 }
 
 /// @brief Load a number to register Vx

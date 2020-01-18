@@ -27,6 +27,7 @@
 #include <core.hpp>
 
 namespace chip8 {
+namespace opcode {
 
 using Opcode = uint16_t;
 
@@ -70,327 +71,802 @@ enum OpcodeEncoding
     OPCODE_FX65 = 0xF065
 };
 
-/// @brief Build opcode 00E0
+/// @brief Operands register Vx.
+struct OperandsX
+{
+    unsigned x : 4;
+};
+
+/// @brief Operands register Vx,byte.
+struct OperandsXKK
+{
+    unsigned x  : 4;
+    unsigned kk : 8;
+};
+
+/// @brief Operands register Vx,Vy.
+struct OperandsXY
+{
+    unsigned x : 4;
+    unsigned y : 4;
+};
+
+// @brief Operands Vx,Vy,nibble
+struct OperandsXYN
+{
+    unsigned x : 4;
+    unsigned y : 4;
+    unsigned n : 4;
+};
+
+/// @brief Operands NNN
+struct OperandsNNN
+{
+    unsigned nnn : 12;
+};
+
+/// @brief Encode opcode 00E0
 ///
 /// @return Opcode.
-inline Opcode opcode00E0()
+inline Opcode encode00E0()
 {
     return OPCODE_00E0;
 }
 
-/// @brief Build opcode 00EE
+/// @brief Decode opcode 00E0
+///
+/// @param opcode Opcode.
+/// @return Opcode.
+inline Opcode decode00E0(Opcode opcode)
+{
+    return opcode & OPCODE_00E0;
+}
+
+/// @brief Encode opcode 00EE
 ///
 /// @return Opcode.
-inline Opcode opcode00EE()
+inline Opcode encode00EE()
 {
     return OPCODE_00EE;
 }
 
-/// @brief Build opcode 0NNN
+/// @brief Decode opcode 00E0
 ///
-/// @param nnn Address.
+/// @param opcode Opcode.
 /// @return Opcode.
-inline Opcode opcode0NNN(uint16_t nnn)
+inline Opcode decode00EE(Opcode opcode)
 {
-    return OPCODE_0NNN | (nnn & 0xFFF);
+    return opcode & OPCODE_00E0;
 }
 
-/// @brief Build opcode 1NNN
+/// @brief Encode opcode 0NNN
 ///
 /// @param nnn Address.
-/// @return Opcode.
-inline Opcode opcode1NNN(uint16_t nnn)
+/// @return Operands.
+inline Opcode encode0NNN(uint16_t nnn)
 {
-    return OPCODE_1NNN | (nnn & 0xFFF);
+    OperandsNNN operands;
+
+    operands.nnn = nnn;
+
+    return OPCODE_0NNN | operands.nnn;
 }
 
-/// @brief Build opcode 2NNN
+/// @brief Decode opcode 0NNN
+///
+/// @param operands Operands.
+/// @return Operands.
+inline OperandsNNN decode0NNN(Opcode opcode)
+{
+    OperandsNNN operands;
+
+    operands.nnn = opcode & 0xFFF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 1NNN
 ///
 /// @param nnn Address.
-/// @return Opcode.
-inline Opcode opcode2NNN(uint16_t nnn)
+/// @return Operands.
+inline Opcode encode1NNN(uint16_t nnn)
 {
-    return OPCODE_2NNN | (nnn & 0xFFF);
+    OperandsNNN operands;
+
+    operands.nnn = nnn;
+
+    return OPCODE_1NNN | operands.nnn;
 }
 
-/// @brief Build opcode 3XKK
+/// @brief Decode opcode 1NNN
+///
+/// @param operands Operands.
+/// @return Operands.
+inline OperandsNNN decode1NNN(Opcode opcode)
+{
+    OperandsNNN operands;
+
+    operands.nnn = opcode & 0xFFF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 2NNN
+///
+/// @param nnn Address.
+/// @return Operands.
+inline Opcode encode2NNN(uint16_t nnn)
+{
+    OperandsNNN operands;
+
+    operands.nnn = nnn;
+
+    return OPCODE_2NNN | operands.nnn;
+}
+
+/// @brief Decode opcode 2NNN
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsNNN decode2NNN(Opcode opcode)
+{
+    OperandsNNN operands;
+
+    operands.nnn = opcode & 0xFFF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 3XKK
 ///
 /// @param x  Vx.
 /// @param kk Byte.
 /// @return Opcode.
-inline Opcode opcode3XKK(uint16_t x, uint16_t kk)
+inline Opcode encode3XKK(uint16_t x, uint16_t kk)
 {
-    return OPCODE_3XKK | ((x & 0xF) << 8) | (kk & 0xFF);
+    OperandsXKK operands;
+
+    operands.x = x;
+    operands.kk = kk;
+
+    return OPCODE_3XKK | (operands.x << 8) | operands.kk;
 }
 
-/// @brief Build opcode 4XKK
+/// @brief Decode opcode 3XKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXKK decode3XKK(Opcode opcode)
+{
+    OperandsXKK operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.kk = opcode & 0xFF;
+
+    return operands;
+};
+
+/// @brief Encode opcode 4XKK
 ///
 /// @param x  Vx.
 /// @param kk Byte.
 /// @return Opcode.
-inline Opcode opcode4XKK(uint16_t x, uint16_t kk)
+inline Opcode encode4XKK(uint16_t x, uint16_t kk)
 {
-    return OPCODE_4XKK | ((x & 0xF) << 8) | (kk & 0xFF);
+    OperandsXKK operands;
+
+    operands.x = x;
+    operands.kk = kk;
+
+    return OPCODE_4XKK | (operands.x << 8) | operands.kk;
 }
 
-/// @brief Build opcode 5XY0
+/// @brief Decode opcode 4XKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXKK decode4XKK(Opcode opcode)
+{
+    OperandsXKK operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.kk = opcode & 0xFF;
+
+    return operands;
+};
+
+/// @brief Encode opcode 5XY0
 ///
 /// @param x  Vx.
 /// @param y  Vy.
 /// @return Opcode.
-inline Opcode opcode5XKK(uint16_t x, uint16_t y)
+inline Opcode encode5XY0(uint16_t x, uint16_t y)
 {
-    return OPCODE_5XY0 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_5XY0 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 6XKK
+/// @brief Decode opcode 5XKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode5YX0(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+};
+
+/// @brief Encode opcode 6XKK
 ///
 /// @param x  Register Vx.
 /// @param kk Byte.
 /// @return Opcode.
-inline Opcode opcode6XKK(uint16_t x, uint16_t kk)
+inline Opcode encode6XKK(uint16_t x, uint16_t kk)
 {
-    return OPCODE_6XKK | ((x & 0xF) << 8) | (kk & 0xFF);
+    OperandsXKK operands;
+
+    operands.x = x;
+    operands.kk = kk;
+
+    return OPCODE_6XKK | (operands.x << 8) | operands.kk;
 }
 
-/// @brief Build opcode 7XKK
+/// @brief Decode opcode 6XKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode6YX0(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 7XKK
 ///
 /// @param x  Register Vx.
 /// @param kk Byte.
 /// @return Opcode.
-inline Opcode opcode7XKK(uint16_t x, uint16_t kk)
+inline Opcode encode7XKK(uint16_t x, uint16_t kk)
 {
-    return OPCODE_7XKK | ((x & 0xF) << 8) | (kk & 0xFF);
+    OperandsXKK operands;
+
+    operands.x = x;
+    operands.kk = kk;
+
+    return OPCODE_7XKK | (operands.x << 8) | operands.kk;
 }
 
-/// @brief Build opcode 8XY0
+/// @brief Decode opcode 7XKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXKK decode7XKK(Opcode opcode)
+{
+    OperandsXKK operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.kk = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY0
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY0(uint16_t x, uint16_t y)
+inline Opcode encode8XY0(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY0 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY0 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY1
+/// @brief Decode opcode 8XY0
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY0(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY1
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY1(uint16_t x, uint16_t y)
+inline Opcode encode8XY1(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY1 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY1 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY2
+/// @brief Decode opcode 8XY1
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY1(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY2
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY2(uint16_t x, uint16_t y)
+inline Opcode encode8XY2(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY2 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY2 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY3
+/// @brief Decode opcode 8XY2
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY2(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY3
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY3(uint16_t x, uint16_t y)
+inline Opcode encode8XY3(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY3 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY3 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY4
+/// @brief Decode opcode 8XY3
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY3(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY4
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY4(uint16_t x, uint16_t y)
+inline Opcode encode8XY4(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY4 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY4 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY5
+/// @brief Decode opcode 8XY4
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY4(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY5
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY5(uint16_t x, uint16_t y)
+inline Opcode encode8XY5(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY5 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY5 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY6
+/// @brief Decode opcode 8XY5
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY5(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY6
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY6(uint16_t x, uint16_t y)
+inline Opcode encode8XY6(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY6 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY6 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 8XY7
+/// @brief Decode opcode 8XY6
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY6(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 8XY7
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode8XY7(uint16_t x, uint16_t y)
+inline Opcode encode8XY7(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY7 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_8XY7 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode 9XY0
+/// @brief Decode opcode 8XY7
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode8XY7(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode 9XY0
 ///
 /// @param x  Register Vx.
 /// @param y  Register Vy.
 /// @return Opcode.
-inline Opcode opcode9XY0(uint16_t x, uint16_t y)
+inline Opcode encode9XY0(uint16_t x, uint16_t y)
 {
-    return OPCODE_9XY0 | ((x & 0xF) << 8) | ((y & 0xF) << 4);
+    OperandsXY operands;
+
+    operands.x = x;
+    operands.y = y;
+
+    return OPCODE_9XY0 | (operands.x << 8) | (operands.y << 4);
 }
 
-/// @brief Build opcode ANNN
+/// @brief Decode opcode 9XY0
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXY decode9XY0(Opcode opcode)
+{
+    OperandsXY operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.y = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+/// @brief Encode opcode ANNN
 ///
 /// @param nnn Address.
 /// @return Opcode.
-inline Opcode opcodeANNN(uint16_t nnn)
+inline Opcode encodeANNN(uint16_t nnn)
 {
-    return OPCODE_ANNN | (nnn & 0xFFF);
+    OperandsNNN operands;
+
+    operands.nnn = nnn;
+
+    return OPCODE_ANNN | operands.nnn;
 }
 
-/// @brief Build opcode BNNN
+/// @brief Decode opcode ANNN
+///
+/// @param operands Operands.
+/// @return Operands.
+inline OperandsNNN decodeANNN(Opcode opcode)
+{
+    OperandsNNN operands;
+
+    operands.nnn = opcode & 0xFFF;
+
+    return operands;
+}
+
+/// @brief Encode opcode BNNN
 ///
 /// @param nnn Address.
 /// @return Opcode.
-inline Opcode opcodeBNNN(uint16_t nnn)
+inline Opcode encodeBNNN(uint16_t nnn)
 {
-    return OPCODE_BNNN | (nnn & 0xFFF);
+    OperandsNNN operands;
+
+    operands.nnn = nnn;
+
+    return OPCODE_BNNN | operands.nnn;
 }
 
-/// @brief Build opcode CXKK
+
+/// @brief Decode opcode BNNN
+///
+/// @param operands Operands.
+/// @return Operands.
+inline OperandsNNN decodeBNNN(Opcode opcode)
+{
+    OperandsNNN operands;
+
+    operands.nnn = opcode & 0xFFF;
+
+    return operands;
+}
+
+/// @brief Encode opcode CXKK
 ///
 /// @param x  Vx.
 /// @param kk Byte.
 /// @return Opcode.
-inline Opcode opcodeCXKK(uint16_t x, uint16_t kk)
+inline Opcode encodeCXKK(uint16_t x, uint16_t kk)
 {
-    return OPCODE_CXKK | ((x & 0xF) << 8) | (kk & 0xFF);
+    OperandsXKK operands;
+
+    operands.x = x;
+    operands.kk = kk;
+
+    return OPCODE_CXKK | (operands.x << 8) | operands.kk;
 }
 
-/// @brief Build opcode DXYN
+/// @brief Decode opcode CXKK
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline OperandsXKK decodeCXKK(Opcode opcode)
+{
+    OperandsXKK operands;
+
+    operands.x = (opcode >> 8) & 0xF;
+    operands.kk = (opcode >> 4) & 0xF;
+
+    return operands;
+}
+
+
+/// @brief Encode opcode DXYN
 ///
 /// @param x  Vx.
 /// @param y  Vy.
 /// @param n  Address.
 /// @return Opcode.
-inline Opcode opcodeDXYN(uint16_t x, uint16_t y, uint16_t n)
+inline Opcode encodeDXYN(uint16_t x, uint16_t y, uint16_t n)
 {
-    return OPCODE_DXYN | ((x & 0xF) << 8) | ((y & 0xF) << 4) | (n & 0xF);
+    OperandsXYN operands;
+
+    operands.x = x;
+    operands.y = y;
+    operands.n = n;
+
+    return OPCODE_DXYN | (operands.x << 8) | (operands.y << 4) | operands.n;
 }
 
-/// @brief Build opcode EX9E
+/// @brief Encode opcode EX9E
 ///
 /// @param x  Vx.
 /// @return Opcode.
-inline Opcode opcodeEX9E(uint16_t x)
+inline Opcode encodeEX9E(uint16_t x)
 {
-    return OPCODE_EX9E | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_EX9E | (operands.x << 8);
 }
 
-/// @brief Build opcode EXA1
+/// @brief Encode opcode EXA1
 ///
 /// @param x  Vx.
 /// @return Opcode.
-inline Opcode opcodeEXA1(uint16_t x)
+inline Opcode encodeEXA1(uint16_t x)
 {
-    return OPCODE_EXA1 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_EXA1 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX07
+/// @brief Encode opcode FX07
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX07(uint16_t x)
+inline Opcode encodeFX07(uint16_t x)
 {
-    return OPCODE_FX07 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX07 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX0A
+/// @brief Encode opcode FX0A
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX0A(uint16_t x)
+inline Opcode encodeFX0A(uint16_t x)
 {
-    return OPCODE_FX0A | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX0A | (operands.x << 8);
 }
 
-/// @brief Build opcode FX15
+/// @brief Encode opcode FX15
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX15(uint16_t x)
+inline Opcode encodeFX15(uint16_t x)
 {
-    return OPCODE_FX15 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX15 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX18
+/// @brief Encode opcode FX18
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX18(uint16_t x)
+inline Opcode encodeFX18(uint16_t x)
 {
-    return OPCODE_FX18 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX18 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX1E
+/// @brief Encode opcode FX1E
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX1E(uint16_t x)
+inline Opcode encodeFX1E(uint16_t x)
 {
-    return OPCODE_FX1E | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX1E | (operands.x << 8);
 }
 
-/// @brief Build opcode FX29
+/// @brief Encode opcode FX29
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX29(uint16_t x)
+inline Opcode encodeFX29(uint16_t x)
 {
-    return OPCODE_FX29 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX29 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX33
+/// @brief Encode opcode FX33
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX33(uint16_t x)
+inline Opcode encodeFX33(uint16_t x)
 {
-    return OPCODE_FX33 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX33 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX55
+/// @brief Encode opcode FX55
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX55(uint16_t x)
+inline Opcode encodeFX55(uint16_t x)
 {
-    return OPCODE_FX55 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX55 | (operands.x << 8);
 }
 
-/// @brief Build opcode FX65
+/// @brief Encode opcode FX65
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
-inline Opcode opcodeFX65(uint16_t x)
+inline Opcode encodeFX65(uint16_t x)
 {
-    return OPCODE_FX65 | ((x & 0xF) << 8);
+    OperandsX operands;
+
+    operands.x = x;
+
+    return OPCODE_FX65 | (operands.x << 8);
 }
 
+}  // opcode
 }  // chip8
 
 #endif  // CHIP8_OPCODE_HPP

@@ -38,6 +38,8 @@ class Cpu
     public:
         /// @brief Total registers count.
         static constexpr uint8_t REG_COUNT = 16;
+        /// @brief Stack size.
+        static constexpr uint8_t STACK_SIZE = 16;
 
         /// @brief Register context for debugging/testing
         struct RegContext
@@ -47,8 +49,11 @@ class Cpu
 
             /// @brief General purpose registers.
             uint8_t  vx[REG_COUNT];
+
             /// @brief Stack pointer.
             uint8_t  sp;
+            /// @brief Stack.
+            uint16_t stack[STACK_SIZE];
 
             /// @brief I register.
             uint16_t i;
@@ -69,8 +74,6 @@ class Cpu
     private:
         /// @brief Program counter increment.
         static constexpr uint16_t PC_INCR = 2;
-        /// @brief Stack size.
-        static constexpr uint8_t STACK_SIZE = 16;
 
         /// @brief An opcode decoder.
         class OpcodeDecoder
@@ -78,18 +81,20 @@ class Cpu
             public:
                 OpcodeDecoder(Cpu & cpu);
 
-                void decode(Opcode opcode);
+                void decode(opcode::Opcode opcode);
 
             private:
                 using OpcodeFunc = void (Cpu::*)();
 
                 /// @brief Opcode dispatch table.
-                static const std::unordered_map<Opcode, OpcodeFunc> opcodeTable_;
+                static const std::unordered_map<opcode::Opcode, OpcodeFunc> opcodeTable_;
 
                 /// @brief Reference to cpu instance.
                 Cpu & cpu_;
         };
 
+        void opcodeReturn();
+        void opcodeCall();
         void opcodeLoadNumber();
         void opcodeLoadRegister();
         void opcodeLoadIRegister();
@@ -105,7 +110,7 @@ class Cpu
         /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
         /// @brief Current opcode
-        Opcode opcode_;
+        opcode::Opcode opcode_;
 };
 
 }  // chip8
