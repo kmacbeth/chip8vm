@@ -136,10 +136,8 @@ void Cpu::opcodeReturn()
 /// Opcode 2NNN (call addr)
 void Cpu::opcodeCall()
 {
-    uint16_t address = (opcode_ & 0xFFF);
-
     regs_.stack[regs_.sp] = regs_.pc;
-    regs_.pc = address;
+    regs_.pc = opcode::decode2NNN(opcode_).nnn;
 }
 
 /// @brief Load a number to register Vx
@@ -147,10 +145,9 @@ void Cpu::opcodeCall()
 /// Opcode 6xkk (LD Vx,byte)
 void Cpu::opcodeLoadNumber()
 {
-    uint8_t regDest = (opcode_ & 0x0F00) >> 8;
-    uint8_t number  = (opcode_ & 0x00FF);
+    auto op = opcode::decode6XKK(opcode_);
 
-    regs_.vx[regDest] = number;
+    regs_.vx[op.x] = op.kk;
 }
 
 /// @brief Load register Vy to register Vx
@@ -158,10 +155,9 @@ void Cpu::opcodeLoadNumber()
 /// Opcode 8xy0 (LD Vx,Vy)
 void Cpu::opcodeLoadRegister()
 {
-    uint8_t regDest = (opcode_ >> 8) & 0xF;
-    uint8_t regSrc  = (opcode_ >> 4) & 0xF;
+    auto op = opcode::decode8XY0(opcode_);
 
-    regs_.vx[regDest] = regs_.vx[regSrc];
+    regs_.vx[op.x] = regs_.vx[op.y];
 }
 
 /// @brief Load I register with 12-bit address
@@ -169,7 +165,7 @@ void Cpu::opcodeLoadRegister()
 /// Opcode Annn (LD I,addr)
 void Cpu::opcodeLoadIRegister()
 {
-    regs_.i = (opcode_ & 0xFFF);
+    regs_.i = opcode::decodeANNN(opcode_).nnn;
 }
 
 /// @brief Load delay timer from register.
@@ -177,18 +173,18 @@ void Cpu::opcodeLoadIRegister()
 /// Opcode Fx15 (LD DT,Vx)
 void Cpu::opcodeLoadDelayTimerFromRegister()
 {
-    uint8_t regSrc = (opcode_ >> 8) & 0xF;
+    auto op = opcode::decodeFX15(opcode_);
 
-    regs_.dt = regs_.vx[regSrc];
+    regs_.dt = regs_.vx[op.x];
 }
 /// @brief Load register from delay timer.
 ///
 /// Opcode Fx07 (LD Vx,DT)
 void Cpu::opcodeLoadRegisterFromDelayTimer()
 {
-    uint8_t regDest = (opcode_ >> 8) & 0xF;
+    auto op = opcode::decodeFX07(opcode_);
 
-    regs_.vx[regDest] = regs_.dt;
+    regs_.vx[op.x] = regs_.dt;
 }
 
 /// @brief Load sound timer from register.
@@ -198,7 +194,9 @@ void Cpu::opcodeLoadSoundTimerFromRegister()
 {
     uint8_t regSrc = (opcode_ >> 8) & 0xF;
 
-    regs_.st = regs_.vx[regSrc];
+    auto op = opcode::decodeFX18(opcode_);
+
+    regs_.st = regs_.vx[op.x];
 }
 
 }  // chip8

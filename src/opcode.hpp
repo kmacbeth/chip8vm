@@ -105,6 +105,162 @@ struct OperandsNNN
     unsigned nnn : 12;
 };
 
+
+/// @brief Operands utilities.
+struct Operand
+{
+    /// @brief Vx index.
+    struct X
+    {
+        X(uint16_t x) : x(x) {}
+
+        uint16_t x;
+    };
+
+    /// @brief Vx index plus byte.
+    struct XKK : X
+    {
+        XKK(uint16_t x, uint16_t kk) : X(x), kk(kk) {}
+
+        uint16_t kk;
+    };
+
+    /// @brief Vx plus Vy.
+    struct XY : X
+    {
+        XY(uint16_t x, uint16_t y) : X(x), y(y) {}
+
+        uint16_t y;
+    };
+
+    /// @brief Vx plus Vy plus nibble.
+    struct XYN : XY
+    {
+        XYN(uint16_t x, uint16_t y, uint16_t n) : XY(x, y), n(n) {}
+
+        uint16_t n;
+    };
+
+    /// @brief Address.
+    struct NNN
+    {
+        NNN(uint16_t nnn) : nnn(nnn) {}
+
+        uint16_t nnn;
+    };
+
+    template<typename OP>
+    static Opcode join(OP const& op);
+
+    template<typename OP>
+    static OP split(Opcode opcode);
+};
+
+/// @brief Join Vx.
+///
+/// @param x  Vx register.
+/// @return Joined operand.
+template<>
+inline Opcode Operand::join(X const& op)
+{
+    return ((op.x & 0xF) << 8);
+}
+
+/// @brief Join Vx and byte.
+///
+/// @param x  Vx register.
+/// @param kk Byte value.
+/// @return Joined operands.
+template<>
+inline Opcode Operand::join(XKK const& op)
+{
+    return join<X>(op) | (op.kk & 0xFF);
+}
+
+/// @brief Join Vx and Vy
+///
+/// @param x  Vx register.
+/// @param y  Vy register.
+/// @return Joined operands.
+template<>
+inline Opcode Operand::join(XY const& op)
+{
+    return join<X>(op) | ((op.y & 0xF) << 4);
+}
+
+/// @brief Join Vx, Vy and nibble
+///
+/// @param x  Vx register.
+/// @param y  Vy register.
+/// @param n  Nibble.
+/// @return Joined operands.
+template<>
+inline Opcode Operand::join(XYN const& op)
+{
+    return join<XY>(op) | (op.n & 0xF);
+}
+
+/// @brief Join address.
+///
+/// @param nnn Address.
+/// @return Joined operand.
+template<>
+inline Opcode Operand::join(NNN const& op)
+{
+    return (op.nnn & 0xFFF);
+}
+
+/// @brief Split Vx.
+///
+/// @param opcode Opcode.
+/// @return X object.
+template<>
+inline Operand::X Operand::split(Opcode opcode)
+{
+    return Operand::X((opcode >> 8) & 0xF);
+}
+
+/// @brief Split Vx and kk.
+///
+/// @param opcode Opcode.
+/// @return X object.
+template<>
+inline Operand::XKK Operand::split(Opcode opcode)
+{
+    return Operand::XKK((opcode >> 8) &0xF, opcode & 0xFF);
+}
+
+/// @brief Split Vx and Vy.
+///
+/// @param opcode Opcode.
+/// @return X object.
+template<>
+inline Operand::XY Operand::split(Opcode opcode)
+{
+    return Operand::XY((opcode >> 8) & 0xF, (opcode >> 4) & 0xF);
+}
+
+/// @brief Split Vx and Vy and nibble.
+///
+/// @param opcode Opcode.
+/// @return X object.
+template<>
+inline Operand::XYN Operand::split(Opcode opcode)
+{
+    return Operand::XYN((opcode >> 8) & 0xF, (opcode >> 4) & 0xF, opcode & 0xF);
+}
+
+/// @brief Split address.
+///
+/// @param opcode Opcode.
+/// @return NNN object.
+template<>
+inline Operand::NNN Operand::split(Opcode opcode)
+{
+    return Operand::NNN(opcode & 0xFFF);
+}
+
+
 /// @brief Encode opcode 00E0
 ///
 /// @return Opcode.
@@ -145,24 +301,16 @@ inline Opcode decode00EE(Opcode opcode)
 /// @return Operands.
 inline Opcode encode0NNN(uint16_t nnn)
 {
-    OperandsNNN operands;
-
-    operands.nnn = nnn;
-
-    return OPCODE_0NNN | operands.nnn;
+    return OPCODE_0NNN | Operand::join(Operand::NNN(nnn));
 }
 
 /// @brief Decode opcode 0NNN
 ///
 /// @param operands Operands.
 /// @return Operands.
-inline OperandsNNN decode0NNN(Opcode opcode)
+inline Operand::NNN decode0NNN(Opcode opcode)
 {
-    OperandsNNN operands;
-
-    operands.nnn = opcode & 0xFFF;
-
-    return operands;
+    return Operand::split<Operand::NNN>(opcode);
 }
 
 /// @brief Encode opcode 1NNN
@@ -171,24 +319,16 @@ inline OperandsNNN decode0NNN(Opcode opcode)
 /// @return Operands.
 inline Opcode encode1NNN(uint16_t nnn)
 {
-    OperandsNNN operands;
-
-    operands.nnn = nnn;
-
-    return OPCODE_1NNN | operands.nnn;
+    return OPCODE_1NNN | Operand::join(Operand::NNN(nnn));
 }
 
 /// @brief Decode opcode 1NNN
 ///
 /// @param operands Operands.
 /// @return Operands.
-inline OperandsNNN decode1NNN(Opcode opcode)
+inline Operand::NNN decode1NNN(Opcode opcode)
 {
-    OperandsNNN operands;
-
-    operands.nnn = opcode & 0xFFF;
-
-    return operands;
+    return Operand::split<Operand::NNN>(opcode);
 }
 
 /// @brief Encode opcode 2NNN
@@ -197,26 +337,17 @@ inline OperandsNNN decode1NNN(Opcode opcode)
 /// @return Operands.
 inline Opcode encode2NNN(uint16_t nnn)
 {
-    OperandsNNN operands;
-
-    operands.nnn = nnn;
-
-    return OPCODE_2NNN | operands.nnn;
+    return OPCODE_2NNN | Operand::join(Operand::NNN(nnn));
 }
 
 /// @brief Decode opcode 2NNN
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsNNN decode2NNN(Opcode opcode)
+inline Operand::NNN decode2NNN(Opcode opcode)
 {
-    OperandsNNN operands;
-
-    operands.nnn = opcode & 0xFFF;
-
-    return operands;
+    return Operand::split<Operand::NNN>(opcode);
 }
-
 /// @brief Encode opcode 3XKK
 ///
 /// @param x  Vx.
@@ -224,26 +355,16 @@ inline OperandsNNN decode2NNN(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode3XKK(uint16_t x, uint16_t kk)
 {
-    OperandsXKK operands;
-
-    operands.x = x;
-    operands.kk = kk;
-
-    return OPCODE_3XKK | (operands.x << 8) | operands.kk;
+    return OPCODE_3XKK | Operand::join(Operand::XKK(x, kk));
 }
 
 /// @brief Decode opcode 3XKK
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXKK decode3XKK(Opcode opcode)
+inline Operand::XKK decode3XKK(Opcode opcode)
 {
-    OperandsXKK operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.kk = opcode & 0xFF;
-
-    return operands;
+    return Operand::split<Operand::XKK>(opcode);
 };
 
 /// @brief Encode opcode 4XKK
@@ -253,26 +374,16 @@ inline OperandsXKK decode3XKK(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode4XKK(uint16_t x, uint16_t kk)
 {
-    OperandsXKK operands;
-
-    operands.x = x;
-    operands.kk = kk;
-
-    return OPCODE_4XKK | (operands.x << 8) | operands.kk;
+    return OPCODE_4XKK | Operand::join(Operand::XKK(x, kk));
 }
 
 /// @brief Decode opcode 4XKK
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXKK decode4XKK(Opcode opcode)
+inline Operand::XKK decode4XKK(Opcode opcode)
 {
-    OperandsXKK operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.kk = opcode & 0xFF;
-
-    return operands;
+    return Operand::split<Operand::XKK>(opcode);
 };
 
 /// @brief Encode opcode 5XY0
@@ -282,26 +393,16 @@ inline OperandsXKK decode4XKK(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode5XY0(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_5XY0 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_5XY0 | Operand::join(Operand::XY(x, y));
 }
 
-/// @brief Decode opcode 5XKK
+/// @brief Decode opcode 5XY0
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode5YX0(Opcode opcode)
+inline Operand::XY decode5XY0(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 };
 
 /// @brief Encode opcode 6XKK
@@ -311,26 +412,16 @@ inline OperandsXY decode5YX0(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode6XKK(uint16_t x, uint16_t kk)
 {
-    OperandsXKK operands;
-
-    operands.x = x;
-    operands.kk = kk;
-
-    return OPCODE_6XKK | (operands.x << 8) | operands.kk;
+    return OPCODE_6XKK | Operand::join(Operand::XKK(x, kk));
 }
 
 /// @brief Decode opcode 6XKK
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode6YX0(Opcode opcode)
+inline Operand::XKK decode6XKK(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XKK>(opcode);
 }
 
 /// @brief Encode opcode 7XKK
@@ -340,26 +431,16 @@ inline OperandsXY decode6YX0(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode7XKK(uint16_t x, uint16_t kk)
 {
-    OperandsXKK operands;
-
-    operands.x = x;
-    operands.kk = kk;
-
-    return OPCODE_7XKK | (operands.x << 8) | operands.kk;
+    return OPCODE_7XKK | Operand::join(Operand::XKK(x, kk));
 }
 
 /// @brief Decode opcode 7XKK
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXKK decode7XKK(Opcode opcode)
+inline Operand::XKK decode7XKK(Opcode opcode)
 {
-    OperandsXKK operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.kk = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XKK>(opcode);
 }
 
 /// @brief Encode opcode 8XY0
@@ -369,26 +450,16 @@ inline OperandsXKK decode7XKK(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY0(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY0 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY0 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY0
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY0(Opcode opcode)
+inline Operand::XY decode8XY0(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY1
@@ -398,26 +469,16 @@ inline OperandsXY decode8XY0(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY1(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY1 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY1 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY1
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY1(Opcode opcode)
+inline Operand::XY decode8XY1(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY2
@@ -427,26 +488,16 @@ inline OperandsXY decode8XY1(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY2(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY2 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY2 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY2
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY2(Opcode opcode)
+inline Operand::XY decode8XY2(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY3
@@ -456,26 +507,16 @@ inline OperandsXY decode8XY2(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY3(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY3 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY3 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY3
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY3(Opcode opcode)
+inline Operand::XY decode8XY3(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY4
@@ -485,26 +526,16 @@ inline OperandsXY decode8XY3(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY4(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY4 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY4 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY4
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY4(Opcode opcode)
+inline Operand::XY decode8XY4(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY5
@@ -514,26 +545,16 @@ inline OperandsXY decode8XY4(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY5(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY5 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY5 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY5
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY5(Opcode opcode)
+inline Operand::XY decode8XY5(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY6
@@ -543,26 +564,16 @@ inline OperandsXY decode8XY5(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY6(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY6 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY6 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY6
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY6(Opcode opcode)
+inline Operand::XY decode8XY6(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 8XY7
@@ -572,26 +583,16 @@ inline OperandsXY decode8XY6(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY7(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_8XY7 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_8XY6 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY7
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode8XY7(Opcode opcode)
+inline Operand::XY decode8XY7(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode 9XY0
@@ -601,26 +602,16 @@ inline OperandsXY decode8XY7(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode9XY0(uint16_t x, uint16_t y)
 {
-    OperandsXY operands;
-
-    operands.x = x;
-    operands.y = y;
-
-    return OPCODE_9XY0 | (operands.x << 8) | (operands.y << 4);
+    return OPCODE_9XY0 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 9XY0
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXY decode9XY0(Opcode opcode)
+inline Operand::XY decode9XY0(Opcode opcode)
 {
-    OperandsXY operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.y = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XY>(opcode);
 }
 
 /// @brief Encode opcode ANNN
@@ -629,24 +620,16 @@ inline OperandsXY decode9XY0(Opcode opcode)
 /// @return Opcode.
 inline Opcode encodeANNN(uint16_t nnn)
 {
-    OperandsNNN operands;
-
-    operands.nnn = nnn;
-
-    return OPCODE_ANNN | operands.nnn;
+    return OPCODE_ANNN | Operand::join(Operand::NNN(nnn));
 }
 
 /// @brief Decode opcode ANNN
 ///
 /// @param operands Operands.
 /// @return Operands.
-inline OperandsNNN decodeANNN(Opcode opcode)
+inline Operand::NNN decodeANNN(Opcode opcode)
 {
-    OperandsNNN operands;
-
-    operands.nnn = opcode & 0xFFF;
-
-    return operands;
+    return Operand::split<Operand::NNN>(opcode);
 }
 
 /// @brief Encode opcode BNNN
@@ -655,25 +638,16 @@ inline OperandsNNN decodeANNN(Opcode opcode)
 /// @return Opcode.
 inline Opcode encodeBNNN(uint16_t nnn)
 {
-    OperandsNNN operands;
-
-    operands.nnn = nnn;
-
-    return OPCODE_BNNN | operands.nnn;
+    return OPCODE_BNNN | Operand::join(Operand::NNN(nnn));
 }
-
 
 /// @brief Decode opcode BNNN
 ///
 /// @param operands Operands.
 /// @return Operands.
-inline OperandsNNN decodeBNNN(Opcode opcode)
+inline Operand::NNN decodeBNNN(Opcode opcode)
 {
-    OperandsNNN operands;
-
-    operands.nnn = opcode & 0xFFF;
-
-    return operands;
+    return Operand::split<Operand::NNN>(opcode);
 }
 
 /// @brief Encode opcode CXKK
@@ -683,28 +657,17 @@ inline OperandsNNN decodeBNNN(Opcode opcode)
 /// @return Opcode.
 inline Opcode encodeCXKK(uint16_t x, uint16_t kk)
 {
-    OperandsXKK operands;
-
-    operands.x = x;
-    operands.kk = kk;
-
-    return OPCODE_CXKK | (operands.x << 8) | operands.kk;
+    return OPCODE_CXKK | Operand::join(Operand::XKK(x, kk));
 }
 
 /// @brief Decode opcode CXKK
 ///
 /// @param opcode Opcode.
 /// @return Operands.
-inline OperandsXKK decodeCXKK(Opcode opcode)
+inline Operand::XKK decodeCXKK(Opcode opcode)
 {
-    OperandsXKK operands;
-
-    operands.x = (opcode >> 8) & 0xF;
-    operands.kk = (opcode >> 4) & 0xF;
-
-    return operands;
+    return Operand::split<Operand::XKK>(opcode);
 }
-
 
 /// @brief Encode opcode DXYN
 ///
@@ -714,13 +677,16 @@ inline OperandsXKK decodeCXKK(Opcode opcode)
 /// @return Opcode.
 inline Opcode encodeDXYN(uint16_t x, uint16_t y, uint16_t n)
 {
-    OperandsXYN operands;
+    return OPCODE_DXYN | Operand::join(Operand::XYN(x, y, n));
+}
 
-    operands.x = x;
-    operands.y = y;
-    operands.n = n;
-
-    return OPCODE_DXYN | (operands.x << 8) | (operands.y << 4) | operands.n;
+/// @brief Decode opcode DXYN
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::XYN decodeDXYN(Opcode opcode)
+{
+    return Operand::split<Operand::XYN>(opcode);
 }
 
 /// @brief Encode opcode EX9E
@@ -729,11 +695,16 @@ inline Opcode encodeDXYN(uint16_t x, uint16_t y, uint16_t n)
 /// @return Opcode.
 inline Opcode encodeEX9E(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_EX9E | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_EX9E | (operands.x << 8);
+/// @brief Decode opcode EX9E
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeEX9E(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode EXA1
@@ -742,24 +713,34 @@ inline Opcode encodeEX9E(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeEXA1(uint16_t x)
 {
-    OperandsX operands;
-
-    operands.x = x;
-
-    return OPCODE_EXA1 | (operands.x << 8);
+    return OPCODE_EXA1 | Operand::join(Operand::X(x));
 }
 
-/// @brief Encode opcode FX07
+/// @brief Decode opcode EXA1
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeEXA1(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
+}
+
+/// @brief Encode opcode FX07.
 ///
 /// @param x  Register Vx.
 /// @return Opcode.
 inline Opcode encodeFX07(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX07 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX07 | (operands.x << 8);
+/// @brief Decode opcode FX07.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX07(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX0A
@@ -768,11 +749,16 @@ inline Opcode encodeFX07(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX0A(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX0A | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX0A | (operands.x << 8);
+/// @brief Decode opcode FX0A.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX0A(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX15
@@ -781,11 +767,16 @@ inline Opcode encodeFX0A(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX15(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX15 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX15 | (operands.x << 8);
+/// @brief Decode opcode FX15.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX15(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX18
@@ -794,11 +785,16 @@ inline Opcode encodeFX15(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX18(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX18 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX18 | (operands.x << 8);
+/// @brief Decode opcode FX18.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX18(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX1E
@@ -807,11 +803,16 @@ inline Opcode encodeFX18(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX1E(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX1E | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX1E | (operands.x << 8);
+/// @brief Decode opcode FX1E.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX1E(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX29
@@ -820,11 +821,16 @@ inline Opcode encodeFX1E(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX29(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX29 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX29 | (operands.x << 8);
+/// @brief Decode opcode FX29.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX29(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX33
@@ -833,11 +839,16 @@ inline Opcode encodeFX29(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX33(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX33 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX33 | (operands.x << 8);
+/// @brief Decode opcode FX33.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX33(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX55
@@ -846,11 +857,16 @@ inline Opcode encodeFX33(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX55(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX55 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX55 | (operands.x << 8);
+/// @brief Decode opcode FX55.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX55(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 /// @brief Encode opcode FX65
@@ -859,11 +875,16 @@ inline Opcode encodeFX55(uint16_t x)
 /// @return Opcode.
 inline Opcode encodeFX65(uint16_t x)
 {
-    OperandsX operands;
+    return OPCODE_FX65 | Operand::join(Operand::X(x));
+}
 
-    operands.x = x;
-
-    return OPCODE_FX65 | (operands.x << 8);
+/// @brief Decode opcode FX65.
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::X decodeFX65(Opcode opcode)
+{
+    return Operand::split<Operand::X>(opcode);
 }
 
 }  // opcode
