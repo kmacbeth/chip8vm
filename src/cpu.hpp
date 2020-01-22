@@ -31,6 +31,7 @@
 namespace chip8 {
 
 class Memory;
+class Gpu;
 
 /// @brief Represent the CHIP-8 CPU.
 class Cpu
@@ -63,7 +64,7 @@ class Cpu
             uint8_t  st;
         };
 
-        Cpu(Memory & memory);
+        Cpu(Memory & memory, Gpu & gpu);
 
         void reset();
         void tick();
@@ -93,8 +94,13 @@ class Cpu
                 Cpu & cpu_;
         };
 
+        void opcodeClearDisplay();
         void opcodeReturn();
+        void opcodeJump();
         void opcodeCall();
+        void opcodeSkipNextIfEquals();
+        void opcodeSkipNextIfNotEquals();
+        void opcodeSkipNextIfEqualsRegister();
         void opcodeLoadNumber();
         void opcodeLoadRegister();
         void opcodeLoadIRegister();
@@ -104,6 +110,8 @@ class Cpu
 
         /// @brief Main memory instance.
         Memory & memory_;
+        /// @brief GPU display.
+        Gpu & gpu_;
         /// @brief Register context.
         RegContext regs_;
 

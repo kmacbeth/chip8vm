@@ -21,40 +21,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef CHIP8_MEMORY_HPP
-#define CHIP8_MEMORY_HPP
+#ifndef CHIP8_GPU_HPP
+#define CHIP8_GPU_HPP
 
-#include <vector>
 #include <core.hpp>
 
 namespace chip8 {
 
-/// @brief Memory class.
-class Memory
+class Memory;
+
+/// @brief Represent the CHIP-8 GPU for display.
+class Gpu
 {
     public:
-        using Bytes = std::vector<uint8_t>;
-        using Words = std::vector<uint16_t>;
+        Gpu(Memory & frameBuffer);
 
-        enum class Endian { BIG, LITTLE };
-
-        Memory(size_t size);
-
-        void storeBuffer(uint16_t startAddress, Bytes const& buffer);
-        void storeBuffer(uint16_t startAddress, Words const& buffer, Endian endian);
-
-        void store(uint16_t address, uint8_t byte);
-
-        size_t getSize() const { return memory_.size(); }
-
-        template<typename TYPE>
-        TYPE load(uint16_t address);
+        void clearFrameBuffer();
 
     private:
-        /// @brief Memory buffer in bytes.
-        std::vector<uint8_t> memory_;
+        Memory & frameBuffer_;
 };
 
 }  // chip8
 
-#endif  // CHIP8_MEMORY_HPP
+#endif  // CHIP8_GPU_HPP
+

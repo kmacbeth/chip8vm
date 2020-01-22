@@ -21,41 +21,61 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <cstdio>
 #include <cstring>
+#include <core.hpp>
 #include "memory.hpp"
 
 namespace chip8 {
 
-/// @brief Store program from 8-bit byte list.
+/// @brief Construct memory instance.
 ///
-/// @param program Reference to program buffer.
-void Memory::storeProgram(Bytes & program)
+/// @param size Memory size.
+Memory::Memory(size_t size)
+    : memory_(size)
 {
-    std::memcpy(memory_.data() + START_POINT, program.data(), program.size());
+}
+
+/// @brief Store buffer from 8-bit byte list.
+///
+/// @param startAddress Address of start point.
+/// @param buffer       Reference to buffer.
+void Memory::storeBuffer(uint16_t startAddress, Bytes const& buffer)
+{
+    std::memcpy(memory_.data() + startAddress, buffer.data(), buffer.size());
 }
 
 /// @brief Store program from 16-bit word list.
 ///
-/// @param program Reference to program buffer.
-void Memory::storeProgram(Words & program, Endian endian)
+/// @param startAddress Address of start point.
+/// @param buffer       Reference to buffer.
+/// @param endian       Buffer data endianness.
+void Memory::storeBuffer(uint16_t startAddress, Words const& buffer, Endian endian)
 {
-    for (uint16_t index = 0; index < program.size(); ++index)
+    for (uint16_t index = 0; index < buffer.size(); ++index)
     {
-        uint16_t address = START_POINT + 2 * index;
+        uint16_t address = startAddress + 2 * index;
 
         switch (endian)
         {
             case Endian::LITTLE:
-                memory_[address    ] = (program[index] >> 8) & 0xFF;
-                memory_[address + 1] = program[index] & 0xFF;
+                memory_[address    ] = (buffer[index] >> 8) & 0xFF;
+                memory_[address + 1] = buffer[index] & 0xFF;
                 break;
             case Endian::BIG:
-                memory_[address    ] = program[index] & 0xFF;
-                memory_[address + 1] = (program[index] >> 8) & 0xFF;
+                memory_[address    ] = buffer[index] & 0xFF;
+                memory_[address + 1] = (buffer[index] >> 8) & 0xFF;
                 break;
         }
     }
+}
+
+/// @brief Store a byte.
+///
+/// @param address Address at which to store the byte.
+/// @param byte    Byte to store.
+void Memory::store(uint16_t address, uint8_t byte)
+{
+    memory_[address] = byte;
 }
 
 /// @brief Load 16-bit word from memory address.

@@ -21,40 +21,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef CHIP8_MEMORY_HPP
-#define CHIP8_MEMORY_HPP
-
-#include <vector>
-#include <core.hpp>
+#include <memory.hpp>
+#include "gpu.hpp"
 
 namespace chip8 {
 
-/// @brief Memory class.
-class Memory
+/// @brief Construct a GPU instance with framebuffer.
+///
+/// @param frameBuffer Framebuffer memory.
+Gpu::Gpu(Memory & frameBuffer)
+    : frameBuffer_(frameBuffer)
 {
-    public:
-        using Bytes = std::vector<uint8_t>;
-        using Words = std::vector<uint16_t>;
+}
 
-        enum class Endian { BIG, LITTLE };
-
-        Memory(size_t size);
-
-        void storeBuffer(uint16_t startAddress, Bytes const& buffer);
-        void storeBuffer(uint16_t startAddress, Words const& buffer, Endian endian);
-
-        void store(uint16_t address, uint8_t byte);
-
-        size_t getSize() const { return memory_.size(); }
-
-        template<typename TYPE>
-        TYPE load(uint16_t address);
-
-    private:
-        /// @brief Memory buffer in bytes.
-        std::vector<uint8_t> memory_;
-};
+/// @brief Clear framebuffer.
+void Gpu::clearFrameBuffer()
+{
+    for (size_t address = 0; address < frameBuffer_.getSize(); ++address)
+    {
+        frameBuffer_.store(address, 0x00);
+    }
+}
 
 }  // chip8
-
-#endif  // CHIP8_MEMORY_HPP

@@ -22,13 +22,15 @@
  * SOFTWARE.
  */
 #include <memory.hpp>
+#include <gpu.hpp>
 #include <cpu.hpp>
-
 
 int main(int argc, char * argv[])
 {
-    chip8::Memory memory;
-    chip8::Cpu cpu(memory);
+    chip8::Memory memory = chip8::Memory{chip8::SYSTEM_MEMORY_SIZE};
+    chip8::Memory frameBuffer = chip8::Memory{chip8::FRAMEBUFFER_SIZE};
+    chip8::Gpu gpu = chip8::Gpu{frameBuffer};
+    chip8::Cpu cpu = chip8::Cpu{memory, gpu};
 
     return 0;
 }
