@@ -24,6 +24,7 @@
 #ifndef CHIP8_CPU_HPP
 #define CHIP8_CPU_HPP
 
+#include <random>
 #include <unordered_map>
 #include <core.hpp>
 #include <opcode.hpp>
@@ -114,6 +115,8 @@ class Cpu
         void opcodeShlRegister();
         void opcodeSkipNextIfNotEqualsRegister();
         void opcodeLoadIRegister();
+        void opcodeJumpOffset();
+        void opcodeRandomNumber();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
@@ -127,8 +130,12 @@ class Cpu
 
         /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
-        /// @brief Current opcode
+        /// @brief Current opcode.
         opcode::Opcode opcode_;
+
+        /// @brief Random number generator.
+        std::uniform_int_distribution<uint8_t> randomizer_;
+        std::mt19937 bitGenerator_;
 };
 
 }  // chip8

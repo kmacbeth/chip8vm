@@ -22,7 +22,9 @@
  * SOFTWARE.
  */
 #include <cstdio>
+
 #include <cstring>
+#include <algorithm>
 #include <memory.hpp>
 #include <gpu.hpp>
 #include "cpu.hpp"
@@ -51,6 +53,8 @@ const std::unordered_map<opcode::Opcode, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::Op
     { opcode::OPCODE_8XYE, &Cpu::opcodeShlRegister },
     { opcode::OPCODE_9XY0, &Cpu::opcodeSkipNextIfNotEqualsRegister },
     { opcode::OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
+    { opcode::OPCODE_BNNN, &Cpu::opcodeJumpOffset },
+    { opcode::OPCODE_CXKK, &Cpu::opcodeRandomNumber },
     { opcode::OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
@@ -99,6 +103,8 @@ Cpu::Cpu(Memory & memory, Gpu & gpu)
     , regs_{}
     , opcodeDecoder_{*this}
     , opcode_{0x0000}
+    , randomizer_{}
+    , bitGenerator_{}
 {
     reset();
 }
@@ -110,7 +116,8 @@ Cpu::Cpu(Memory & memory, Gpu & gpu)
 void Cpu::reset()
 {
     regs_.pc = SYSTEM_START_POINT;
-    std::memset(regs_.vx, 0, sizeof(regs_.vx));
+    //std::memset(regs_.vx, 0, sizeof(regs_.vx));
+    std::fill(regs_.vx, regs_.vx + sizeof(regs_.vx), 0);
     regs_.sp = 0;
     regs_.i  = 0;
     regs_.dt = 0;
@@ -361,6 +368,28 @@ void Cpu::opcodeLoadIRegister()
     regs_.i = opcode::decodeANNN(opcode_).nnn;
 }
 
+/// @brief Jump to address with offset.
+///
+/// Opcode BNNN (JP V0,nnn)
+void Cpu::opcodeJumpOffset()
+{
+    auto op = opcode::decodeBNNN(opcode_);
+
+    regs_.pc = op.nnn + regs_.vx[0];
+}
+
+/// @brief Random number at register Vx.
+///
+/// Opcode Cxkk (RND Vx,byte)
+void Cpu::opcodeRandomNumber()
+{
+    auto op = opcode::decodeCXKK(opcode_);
+
+    uint8_t number = randomizer_(bitGenerator_); 
+
+    regs_.vx[op.x] = number & op.kk;
+}
+
 /// @brief Load delay timer from register.
 ///
 /// Opcode Fx15 (LD DT,Vx)
@@ -370,6 +399,7 @@ void Cpu::opcodeLoadDelayTimerFromRegister()
 
     regs_.dt = regs_.vx[op.x];
 }
+
 /// @brief Load register from delay timer.
 ///
 /// Opcode Fx07 (LD Vx,DT)

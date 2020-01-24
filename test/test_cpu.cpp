@@ -609,6 +609,55 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getCpuRegCtx().i == 0x123);
     }
 
+    SECTION("Jump to location plus V0 offset")
+    {
+        uint16_t address1 = chip8::SYSTEM_START_POINT + 0x4;
+        uint16_t address2 = chip8::SYSTEM_START_POINT + 0xA;
+        uint16_t offset = 0x2;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encodeBNNN(address1),
+            0x0000,
+            chip8::opcode::encode6XKK(0, offset),
+            chip8::opcode::encodeBNNN(address2)
+        };
+
+        vm.storeCode(opcodes);
+
+        REQUIRE(vm.getCpuRegCtx().vx[0] == 0);
+
+        vm.run();
+        REQUIRE(vm.getCpuRegCtx().pc == address1);
+
+        vm.run();
+        REQUIRE(vm.getCpuRegCtx().vx[0] == offset);
+
+        vm.run();
+        REQUIRE(vm.getCpuRegCtx().pc == (address2 + offset));
+    }
+
+    SECTION("Generate random 8-bit number")
+    {
+        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+        uint16_t mask1 = 0x7F;
+        uint16_t mask2 = 0x05;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encodeCXKK(vxIndex, mask1),
+            chip8::opcode::encodeCXKK(vxIndex, mask2)
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.setRegContextDump();
+
+        vm.run();
+        REQUIRE(vm.getCpuRegCtx().vx[vxIndex] < (mask1 + 1));
+
+        vm.run();
+        REQUIRE(vm.getCpuRegCtx().vx[vxIndex] < (mask2 - 4));
+    }
+
     SECTION("Load DT register to Vx register")
     {
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
