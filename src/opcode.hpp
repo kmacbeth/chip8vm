@@ -583,7 +583,7 @@ inline Operand::XY decode8XY6(Opcode opcode)
 /// @return Opcode.
 inline Opcode encode8XY7(uint16_t x, uint16_t y)
 {
-    return OPCODE_8XY6 | Operand::join(Operand::XY(x, y));
+    return OPCODE_8XY7 | Operand::join(Operand::XY(x, y));
 }
 
 /// @brief Decode opcode 8XY7
@@ -591,6 +591,25 @@ inline Opcode encode8XY7(uint16_t x, uint16_t y)
 /// @param opcode Opcode.
 /// @return Operands.
 inline Operand::XY decode8XY7(Opcode opcode)
+{
+    return Operand::split<Operand::XY>(opcode);
+}
+
+/// @brief Encode opcode 8XYE
+///
+/// @param x  Register Vx.
+/// @param y  Register Vy.
+/// @return Opcode.
+inline Opcode encode8XYE(uint16_t x, uint16_t y)
+{
+    return OPCODE_8XYE | Operand::join(Operand::XY(x, y));
+}
+
+/// @brief Decode opcode 8XYE
+///
+/// @param opcode Opcode.
+/// @return Operands.
+inline Operand::XY decode8XYE(Opcode opcode)
 {
     return Operand::split<Operand::XY>(opcode);
 }

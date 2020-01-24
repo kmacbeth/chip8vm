@@ -102,7 +102,17 @@ class Cpu
         void opcodeSkipNextIfNotEquals();
         void opcodeSkipNextIfEqualsRegister();
         void opcodeLoadNumber();
+        void opcodeAddNumber();
         void opcodeLoadRegister();
+        void opcodeOrRegister();
+        void opcodeAndRegister();
+        void opcodeXorRegister();
+        void opcodeAddRegister();
+        void opcodeSubRegister();
+        void opcodeShrRegister();
+        void opcodeSubnRegister();
+        void opcodeShlRegister();
+        void opcodeSkipNextIfNotEqualsRegister();
         void opcodeLoadIRegister();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();

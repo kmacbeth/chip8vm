@@ -39,7 +39,17 @@ const std::unordered_map<opcode::Opcode, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::Op
     { opcode::OPCODE_4XKK, &Cpu::opcodeSkipNextIfNotEquals },
     { opcode::OPCODE_5XY0, &Cpu::opcodeSkipNextIfEqualsRegister },
     { opcode::OPCODE_6XKK, &Cpu::opcodeLoadNumber },
+    { opcode::OPCODE_7XKK, &Cpu::opcodeAddNumber },
     { opcode::OPCODE_8XY0, &Cpu::opcodeLoadRegister },
+    { opcode::OPCODE_8XY1, &Cpu::opcodeOrRegister },
+    { opcode::OPCODE_8XY2, &Cpu::opcodeAndRegister },
+    { opcode::OPCODE_8XY3, &Cpu::opcodeXorRegister },
+    { opcode::OPCODE_8XY4, &Cpu::opcodeAddRegister },
+    { opcode::OPCODE_8XY5, &Cpu::opcodeSubRegister },
+    { opcode::OPCODE_8XY6, &Cpu::opcodeShrRegister },
+    { opcode::OPCODE_8XY7, &Cpu::opcodeSubnRegister },
+    { opcode::OPCODE_8XYE, &Cpu::opcodeShlRegister },
+    { opcode::OPCODE_9XY0, &Cpu::opcodeSkipNextIfNotEqualsRegister },
     { opcode::OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
     { opcode::OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
@@ -61,11 +71,11 @@ void Cpu::OpcodeDecoder::decode(opcode::Opcode opcode)
 {
     uint16_t decodedOpcode = opcode & 0xF000;
 
-    if (decodedOpcode == 0xF000 || decodedOpcode == 0x0000)
+    if (decodedOpcode == 0x0000 || decodedOpcode == 0xE000 || decodedOpcode == 0xF000)
     {
         decodedOpcode |= (opcode & 0x00FF);
     }
-    else if (decodedOpcode == 0x5000)
+    else if (decodedOpcode == 0x5000 | decodedOpcode == 0x8000 || decodedOpcode == 0x9000)
     {
         decodedOpcode |= (opcode & 0x000F);
     }
@@ -219,6 +229,16 @@ void Cpu::opcodeLoadNumber()
     regs_.vx[op.x] = op.kk;
 }
 
+/// @brief Add a number to register Vx
+///
+/// Opcode 7xkk (ADD Vx,byte)
+void Cpu::opcodeAddNumber()
+{
+    auto op = opcode::decode7XKK(opcode_);
+
+    regs_.vx[op.x] += op.kk;
+}
+
 /// @brief Load register Vy to register Vx
 ///
 /// Opcode 8xy0 (LD Vx,Vy)
@@ -227,6 +247,110 @@ void Cpu::opcodeLoadRegister()
     auto op = opcode::decode8XY0(opcode_);
 
     regs_.vx[op.x] = regs_.vx[op.y];
+}
+
+/// @brief Or register Vy to register Vx
+///
+/// Opcode 8xy1 (OR Vx,Vy)
+void Cpu::opcodeOrRegister()
+{
+    auto op = opcode::decode8XY1(opcode_);
+
+    regs_.vx[op.x] |= regs_.vx[op.y];
+}
+
+/// @brief And register Vy to register Vx
+///
+/// Opcode 8xy2 (AND Vx,Vy)
+void Cpu::opcodeAndRegister()
+{
+    auto op = opcode::decode8XY2(opcode_);
+
+    regs_.vx[op.x] &= regs_.vx[op.y];
+}
+
+/// @brief Xor register Vy to register Vx
+///
+/// Opcode 8xy3 (XOR Vx,Vy)
+void Cpu::opcodeXorRegister()
+{
+    auto op = opcode::decode8XY3(opcode_);
+
+    regs_.vx[op.x] ^= regs_.vx[op.y];
+}
+
+/// @brief Add register Vy to register Vx
+///
+/// Opcode 8xy4 (ADD Vx,Vy)
+void Cpu::opcodeAddRegister()
+{
+    auto op = opcode::decode8XY4(opcode_);
+
+    uint16_t sum = regs_.vx[op.x] + regs_.vx[op.y];
+
+    regs_.vx[0xF] = ((sum & 0xFF00) != 0);
+    regs_.vx[op.x] = (sum & 0xFF);
+}
+
+/// @brief Sub register Vy to register Vx
+///
+/// Opcode 8xy5 (SUB Vx,Vy)
+void Cpu::opcodeSubRegister()
+{
+    auto op = opcode::decode8XY5(opcode_);
+
+    uint16_t difference = regs_.vx[op.x] - regs_.vx[op.y];
+
+    regs_.vx[0xF] = (regs_.vx[op.x] > regs_.vx[op.y]);
+    regs_.vx[op.x] = (difference & 0xFF);
+}
+
+/// @brief Shift right register Vy to register Vx
+///
+/// Opcode 8xy6 (SHR Vx,Vy)
+void Cpu::opcodeShrRegister()
+{
+    auto op = opcode::decode8XY6(opcode_);
+
+    regs_.vx[0xF] = regs_.vx[op.y] & 0x1;
+    regs_.vx[op.x] = regs_.vx[op.y] >> 1;
+}
+
+/// @brief Sub reverse register Vx to register Vy
+///
+/// Opcode 8xy7 (SUBN Vx,Vy)
+void Cpu::opcodeSubnRegister()
+{
+    auto op = opcode::decode8XY7(opcode_);
+
+    uint16_t difference = regs_.vx[op.y] - regs_.vx[op.x];
+
+    regs_.vx[0xF] = (regs_.vx[op.y] > regs_.vx[op.x]);
+    regs_.vx[op.x] = (difference & 0xFF);
+}
+
+/// @brief Shift left register Vy to register Vx
+///
+/// Opcode 8xyE (SHL Vx,Vy)
+void Cpu::opcodeShlRegister()
+{
+    auto op = opcode::decode8XY6(opcode_);
+
+    regs_.vx[0xF] = regs_.vx[op.y] & 0x80;
+    regs_.vx[op.x] = regs_.vx[op.y] << 1;
+}
+
+/// @brief Skip next opcode if Vx not equals Vy.
+///
+/// Opcode 9XY0 (sne Vx,Vy)
+void Cpu::opcodeSkipNextIfNotEqualsRegister()
+{
+    auto op = opcode::decode9XY0(opcode_);
+
+    if (regs_.vx[op.x] != regs_.vx[op.y])
+    {
+        regs_.pc += 2;
+    }
 }
 
 /// @brief Load I register with 12-bit address
