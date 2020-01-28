@@ -143,12 +143,6 @@ void Cpu::tick()
     opcodeDecoder_.decode(opcode_);
 }
 
-/// @brief Dump CPU register context.
-Cpu::RegContext Cpu::dumpRegContext()
-{
-    return regs_;
-}
-
 /// @brief Clear display.
 ///
 /// Opcode 00E0 (CLS)

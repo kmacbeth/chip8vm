@@ -38,6 +38,14 @@ class Gpu;
 class Cpu
 {
     public:
+        Cpu(Memory & memory, Gpu & gpu);
+
+        void reset();
+        void tick();
+
+    protected:
+        /// @brief Program counter increment.
+        static constexpr uint16_t PC_INCR = 2;
         /// @brief Total registers count.
         static constexpr uint8_t REG_COUNT = 16;
         /// @brief Stack size.
@@ -57,7 +65,7 @@ class Cpu
             /// @brief Stack.
             uint16_t stack[STACK_SIZE];
 
-            /// @brief I register.
+            /// @brief I egister.
             uint16_t i;
             /// @brief Delay register.
             uint8_t  dt;
@@ -65,18 +73,11 @@ class Cpu
             uint8_t  st;
         };
 
-        Cpu(Memory & memory, Gpu & gpu);
-
-        void reset();
-        void tick();
-
         // Custom debugging/testing
-        RegContext dumpRegContext();
+        RegContext const& getRegContext() const { return regs_; }
+        opcode::Opcode    getOpcode() const     { return opcode_; }
 
     private:
-        /// @brief Program counter increment.
-        static constexpr uint16_t PC_INCR = 2;
-
         /// @brief An opcode decoder.
         class OpcodeDecoder
         {

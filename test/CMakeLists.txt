@@ -2,6 +2,7 @@ add_executable(chip8tests
     ${CMAKE_SOURCE_DIR}/src/cpu.cpp
     ${CMAKE_SOURCE_DIR}/src/gpu.cpp
     ${CMAKE_SOURCE_DIR}/src/memory.cpp
+    ${CMAKE_SOURCE_DIR}/src/cpu_debugger.cpp
     test_cpu.cpp
     main.cpp
 )
