@@ -27,7 +27,7 @@
 #include <memory.hpp>
 #include <cpu.hpp>
 #include <gpu.hpp>
-#include <cpu_debugger.hpp>
+#include <debugger.hpp>
 
 using OpcodeList = chip8::Memory::Words;
 
@@ -38,7 +38,8 @@ class Chip8TestVm
             : memory_{chip8::SYSTEM_MEMORY_SIZE}
             , frameBuffer_{chip8::FRAMEBUFFER_SIZE}
             , gpu_{frameBuffer_}
-            , cpuDbg_{memory_, gpu_}
+            , cpu_{memory_, gpu_}
+            , debugger_{cpu_, memory_}
         {
         }
 
@@ -63,21 +64,22 @@ class Chip8TestVm
 
         void run()
         {
-            cpuDbg_.tick();
+            debugger_.tick();
         }
 
-        void setDebugTrace(chip8::CpuDebugger::Traces traces)
+        void setDebugTrace(chip8::Debugger::Traces traces)
         {
-            cpuDbg_.setTraces(traces);
+            debugger_.setTraces(traces);
         }
 
-        chip8::CpuDebugger const& getDebugger() { return cpuDbg_; }
+        chip8::Debugger const& getDebugger() { return debugger_; }
 
     private:
         chip8::Memory memory_;
         chip8::Memory frameBuffer_;
         chip8::Gpu gpu_;
-        chip8::CpuDebugger cpuDbg_;
+        chip8::Cpu cpu_;
+        chip8::Debugger debugger_;
 };
 
 
@@ -147,7 +149,6 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         };
 
         vm.storeCode(opcodes);
-        vm.setDebugTrace(chip8::CpuDebugger::Traces::ALL);
 
         vm.run();
         REQUIRE(vm.getDebugger().getStackPointer() == 1);

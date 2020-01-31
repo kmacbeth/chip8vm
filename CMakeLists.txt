@@ -14,8 +14,8 @@ add_executable(chip8
     src/opcode.hpp
     src/gpu.hpp
     src/gpu.cpp
-    src/cpu_debugger.hpp
-    src/cpu_debugger.cpp
+    src/debugger.hpp
+    src/debugger.cpp
 )
 
 target_include_directories(chip8

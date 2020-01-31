@@ -34,16 +34,10 @@ namespace chip8 {
 class Memory;
 class Gpu;
 
-/// @brief Represent the CHIP-8 CPU.
-class Cpu
+/// @brief Represent a CPU interface.
+class Processor
 {
     public:
-        Cpu(Memory & memory, Gpu & gpu);
-
-        void reset();
-        void tick();
-
-    protected:
         /// @brief Program counter increment.
         static constexpr uint16_t PC_INCR = 2;
         /// @brief Total registers count.
@@ -73,11 +67,31 @@ class Cpu
             uint8_t  st;
         };
 
-        // Custom debugging/testing
+        virtual ~Processor() {}
+
+        virtual void reset() = 0;
+        virtual void tick() = 0;
+
+        virtual RegContext const& getRegContext() const = 0;
+        virtual opcode::Opcode    getOpcode() const = 0;
+};
+
+/// @brief Represent the CHIP-8 CPU.
+class Cpu : public Processor
+{
+    public:
+        Cpu(Memory & memory, Gpu & gpu);
+        ~Cpu();
+
+        virtual void reset();
+        virtual void tick();
+
         RegContext const& getRegContext() const { return regs_; }
         opcode::Opcode    getOpcode() const     { return opcode_; }
 
     private:
+        void resetRegisters();
+
         /// @brief An opcode decoder.
         class OpcodeDecoder
         {

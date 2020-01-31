@@ -22,26 +22,39 @@
  * SOFTWARE.
  */
 #include <cstdio>
-#include "cpu_debugger.hpp"
+#include "debugger.hpp"
 
 namespace chip8 {
 
 /// @brief Construct a CHIP-8 cpu debugger.
 ///
+/// @param cpu    Reference to cpu.
 /// @param memory Reference to system memory.
-/// @param gpu    Reference to gpu display.
-CpuDebugger::CpuDebugger(Memory & memory, Gpu & gpu)
-    : Cpu{memory, gpu}
+Debugger::Debugger(Processor & cpu, Memory & memory)
+    : Processor{}
+    , cpu_{cpu}
+    , memory_{memory}
     , traces_{Traces::NONE}
     , regContext_{}
     , opcode_(0)
 {
 }
 
-/// @brief Request CPU tick
-void CpuDebugger::tick()
+/// @brief Destroy a CHIP-8 cpu debugger.
+Debugger::~Debugger()
 {
-    Cpu::tick();
+}
+
+/// @brief Reset CPU.
+void Debugger::reset()
+{
+    cpu_.reset();
+}
+
+/// @brief Request CPU tick
+void Debugger::tick()
+{
+    cpu_.tick();
 
     opcode_ = getOpcode();
     regContext_ = getRegContext();
@@ -62,44 +75,54 @@ void CpuDebugger::tick()
     }
 }
 
-/// @brief Trace opcode to console.
-void CpuDebugger::traceOpcode()
+/// @brief Get CPU registers context.
+///
+/// @return Registers context.
+Processor::RegContext const& Debugger::getRegContext() const
 {
-    std::printf("========================\n");
+    return cpu_.getRegContext();
+}
+
+/// @brief Get opcode.
+///
+/// @return Opcode.
+opcode::Opcode Debugger::getOpcode() const
+{
+    return cpu_.getOpcode();
+}
+
+/// @brief Trace opcode to console.
+void Debugger::traceOpcode()
+{
+    std::printf("========================================\n");
     std::printf("OPCODE: %04X\n", static_cast<uint16_t>(opcode_));
 }
 
 /// @brief Trace registers context to console.
-void CpuDebugger::traceRegContext()
+void Debugger::traceRegContext()
 {
-    std::printf("========================\n");
-    std::printf("PC: %02X\n", regContext_.pc);
+    std::printf("========================================\n");
+    std::printf("  PC: 0x%04X  I:  0x%04X  SP: 0x%02X\n", regContext_.pc, regContext_.i, regContext_.sp);
+    std::printf("  DT: 0x%02X    ST: 0x%02X\n", regContext_.dt, regContext_.st);
+    std::printf("========================================\n");
     for (uint16_t i = 0; i < chip8::Cpu::REG_COUNT; ++i)
     {
-        std::printf("V%u: %01X\n", i, regContext_.vx[i]);
+        std::printf("  V%X: %02X  ", i, regContext_.vx[i]);
+        std::printf("%s", ((i % 4)) == 3 ? "\n" : "");
     }
-    std::printf("SP: %02X\n", regContext_.sp);
-    std::printf("I : %02X\n", regContext_.i);
-    std::printf("DT: %01X\n", regContext_.dt);
-    std::printf("ST: %01X\n", regContext_.st);
 }
 
 /// @brief Trace stack to console.
-void CpuDebugger::traceStack()
+void Debugger::traceStack()
 {
-    std::printf("========================\n");
-    std::printf("STACK:\n");
-    for (uint16_t i = 0; i < chip8::Cpu::STACK_SIZE; ++i)
+    std::printf("========================================\n");
+    std::printf(" + STACK:\n");
+
+    for (uint16_t i = 0; i < chip8::Processor::STACK_SIZE; ++i)
     {
-        std::printf("%02X: %04X", i, regContext_.stack[i]);
-        if ((i + 1) == regContext_.sp)
-        {
-            std::puts(" <-- SP");
-        }
-        else
-        {
-            std::puts("");
-        }
+        std::printf(" %2s %02X: %04X", ((i < (chip8::Processor::STACK_SIZE - 1)) ? "|-" : "`-"),
+                    i, regContext_.stack[i]);
+        std::puts((i + 1) == regContext_.sp ? " <-- SP" : "");
     }
 }
 

@@ -106,22 +106,20 @@ Cpu::Cpu(Memory & memory, Gpu & gpu)
     , randomizer_{}
     , bitGenerator_{}
 {
-    reset();
+    resetRegisters();
 }
 
+/// @brief Destroy a CPU instance.
+Cpu::~Cpu()
+{
+}
 
 /// @brief Reset cpu.
 ///
 /// Reset CPU states, such as program counter and registers.
 void Cpu::reset()
 {
-    regs_.pc = SYSTEM_START_POINT;
-    //std::memset(regs_.vx, 0, sizeof(regs_.vx));
-    std::fill(regs_.vx, regs_.vx + sizeof(regs_.vx), 0);
-    regs_.sp = 0;
-    regs_.i  = 0;
-    regs_.dt = 0;
-    regs_.st = 0;
+    resetRegisters();
 }
 
 /// @brief Process a cpu tick.
@@ -141,6 +139,18 @@ void Cpu::tick()
     }
 
     opcodeDecoder_.decode(opcode_);
+}
+
+/// @brief Reset CPU registers
+/// Reset CPU states, such as program counter and registers.
+void Cpu::resetRegisters()
+{
+    regs_.pc = SYSTEM_START_POINT;
+    std::fill(regs_.vx, regs_.vx + sizeof(regs_.vx), 0);
+    regs_.sp = 0;
+    regs_.i  = 0;
+    regs_.dt = 0;
+    regs_.st = 0;
 }
 
 /// @brief Clear display.

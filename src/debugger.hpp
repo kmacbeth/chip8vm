@@ -29,7 +29,7 @@
 namespace chip8 {
 
 /// @brief Represent a CPU debugger.
-class CpuDebugger : private Cpu
+class Debugger : public Processor
 {
     public:
         /// @brief Debug trace types.
@@ -43,7 +43,8 @@ class CpuDebugger : private Cpu
             ALL       = 0x7
         };
 
-        CpuDebugger(Memory & memory, Gpu & gpu);
+        Debugger(Processor & cpu, Memory & memory);
+        ~Debugger();
 
         void setTraces(Traces traces) { traces_ = traces; }
 
@@ -51,19 +52,26 @@ class CpuDebugger : private Cpu
         uint8_t  getRegisterVx(uint16_t vxIndex) const { return regContext_.vx[vxIndex]; }
         uint8_t  getStackPointer() const { return regContext_.sp; }
         uint16_t getRegisterI() const { return regContext_.i; }
-        uint8_t  getDelayTimer() const { return regContext_.dt; }
+        uint8_t  getDelayTimer()const { return regContext_.dt; }
         uint8_t  getSoundTimer() const { return regContext_.st; }
 
-        void tick();
+        void reset() override;
+        void tick() override;
 
     private:
+        Processor::RegContext const& getRegContext() const override;
+        opcode::Opcode getOpcode() const override;
+
         void traceRegContext();
         void traceOpcode();
         void traceStack();
 
+        Processor & cpu_;
+        Memory & memory_;
         Traces traces_;
-        Cpu::RegContext regContext_;
-        opcode::Opcode  opcode_;
+
+        Processor::RegContext regContext_;
+        opcode::Opcode opcode_;
 };
 
 }  // chip8
