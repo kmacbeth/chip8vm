@@ -642,7 +642,7 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) < (mask2 - 4));
     }
 
-    SECTION("Display n-byte sprite start at I location at Vx,Vy")
+    SECTION("Draw sprite erase pixel.")
     {
         const uint16_t START_DATA_ADDRESS = 0x800;
 
@@ -672,7 +672,59 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
             {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
         };
 
-        std::vector<uint16_t> expectedAddesses = { 129, 129 + 64, 129 + 128, 129 + 192 };
+        std::vector<uint16_t> expectedAddesses = {
+            129,
+            129 + 1 * chip8::Gpu::DISPLAY_WIDTH,
+            129 + 2 * chip8::Gpu::DISPLAY_WIDTH,
+            129 + 3 * chip8::Gpu::DISPLAY_WIDTH
+        };
+
+        for (uint32_t index = 0; index < sprite.size(); ++index)
+        {
+            auto pixel = chip8::Memory::Bytes(8, 0x00);
+
+            vm.loadFrameBufferData(expectedAddesses[index], pixel);
+
+            REQUIRE_THAT(pixel, Catch::Equals(expectedPixels[index]));
+        }
+    }
+
+    SECTION("Draw sprite does not erase pixel.")
+    {
+        const uint16_t START_DATA_ADDRESS = 0x800;
+
+        auto sprite = chip8::Memory::Bytes{0xFF, 0xFF, 0xFF, 0xFF};
+        auto x = 1u;
+        auto y = 2u;
+
+        vm.storeData(START_DATA_ADDRESS, sprite);
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encodeANNN(START_DATA_ADDRESS),
+            chip8::opcode::encodeDXYN(x, y, sprite.size())
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.getDebugger().getRegisterI() == START_DATA_ADDRESS);
+
+        vm.run();
+        REQUIRE(vm.getDebugger().getRegisterVx(0xF) == 0x0);
+
+        std::vector<chip8::Memory::Bytes> expectedPixels = {
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+        };
+
+        std::vector<uint16_t> expectedAddesses = {
+            129,
+            129 + 1 * chip8::Gpu::DISPLAY_WIDTH,
+            129 + 2 * chip8::Gpu::DISPLAY_WIDTH,
+            129 + 3 * chip8::Gpu::DISPLAY_WIDTH
+        };
 
         for (uint32_t index = 0; index < sprite.size(); ++index)
         {

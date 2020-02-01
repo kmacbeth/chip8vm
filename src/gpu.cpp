@@ -30,6 +30,7 @@ namespace chip8 {
 const uint16_t DISPLAY_WIDTH = 64;
 const uint16_t DISPLAY_HEIGHT = 32;
 
+
 /// @brief Construct a GPU instance with framebuffer.
 ///
 /// @param frameBuffer Framebuffer memory.
@@ -47,6 +48,11 @@ void Gpu::clearFrameBuffer()
     }
 }
 
+/// @brief Draw a sprite.
+///
+/// @param x  X coordinate on display screen.
+/// @param y  Y coordinate on display screen.
+/// @return Pixel was erased.
 bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
 {
     bool erased = false;
@@ -62,7 +68,9 @@ bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
             uint16_t address = computeLinearAddress(xPixel, yPixel);
             uint8_t pixel = frameBuffer_.load<uint8_t>(address) ^ spriteValue;
 
+#if 0
             std::printf("Address 0x%04X    Sprite Value %02X    Pixel %02X    (x,y) = (%u,%u)\n", address, spriteValue, pixel, xPixel, yPixel);
+#endif
 
             if (pixel == 0)
             {

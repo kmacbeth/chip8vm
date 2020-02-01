@@ -402,7 +402,7 @@ void Cpu::opcodeDraw()
 {
     auto op = opcode::decodeDXYN(opcode_);
 
-    Memory::Bytes sprite;
+    auto sprite = Memory::Bytes{};
 
     for (size_t offset = 0; offset < op.n; ++offset)
     {

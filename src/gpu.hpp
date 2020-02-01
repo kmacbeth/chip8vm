@@ -35,6 +35,9 @@ class Memory;
 class Gpu
 {
     public:
+        static const uint16_t DISPLAY_WIDTH = 64;
+        static const uint16_t DISPLAY_HEIGHT = 32;
+
         Gpu(Memory & frameBuffer);
 
         void clearFrameBuffer();
