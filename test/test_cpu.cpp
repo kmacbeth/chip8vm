@@ -30,6 +30,7 @@
 #include <debugger.hpp>
 
 using OpcodeList = chip8::Memory::Words;
+using Data = chip8::Memory::Bytes;
 
 class Chip8TestVm
 {
@@ -43,11 +44,15 @@ class Chip8TestVm
         {
         }
 
-        void storeCode(OpcodeList & opcodes)
+        void storeCode(OpcodeList const& opcodes)
         {
             memory_.storeBuffer(chip8::SYSTEM_START_POINT, opcodes, chip8::Memory::Endian::LITTLE);
         }
 
+        void storeData(uint16_t startAddress, Data const& data)
+        {
+            memory_.storeBuffer(startAddress, data);
+        }
 
         void storeFrameBuffer(chip8::Memory::Bytes const& bytes)
         {
@@ -56,9 +61,16 @@ class Chip8TestVm
 
         void loadFrameBuffer(chip8::Memory::Bytes & bytes)
         {
-            for (size_t address = 0; address < frameBuffer_.getSize(); ++address)
+            loadFrameBufferData(0x0000, bytes);
+        }
+
+        void loadFrameBufferData(uint16_t startAddress, chip8::Memory::Bytes & bytes)
+        {
+            for (size_t offset = 0; offset < bytes.size(); ++offset)
             {
-                bytes[address] = frameBuffer_.load<uint8_t>(address);
+                uint16_t address = startAddress + offset;
+
+                bytes[offset] = frameBuffer_.load<uint8_t>(address);
             }
         }
 
@@ -89,8 +101,8 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Clear display")
     {
-        chip8::Memory::Bytes frameBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0xFF);
-        chip8::Memory::Bytes clearBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0x00);
+        auto frameBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0xFF);
+        auto clearBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0x00);
 
         vm.storeFrameBuffer(frameBuffer);
 
@@ -630,11 +642,52 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) < (mask2 - 4));
     }
 
+    SECTION("Display n-byte sprite start at I location at Vx,Vy")
+    {
+        const uint16_t START_DATA_ADDRESS = 0x800;
+
+        auto sprite = chip8::Memory::Bytes{0xFF, 0x81, 0x81, 0xFF};
+        auto x = 1u;
+        auto y = 2u;
+
+        vm.storeData(START_DATA_ADDRESS, sprite);
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encodeANNN(START_DATA_ADDRESS),
+            chip8::opcode::encodeDXYN(x, y, sprite.size())
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.getDebugger().getRegisterI() == START_DATA_ADDRESS);
+
+        vm.run();
+        REQUIRE(vm.getDebugger().getRegisterVx(0xF) == 0x1);
+
+        std::vector<chip8::Memory::Bytes> expectedPixels = {
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
+            {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
+            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+        };
+
+        std::vector<uint16_t> expectedAddesses = { 129, 129 + 64, 129 + 128, 129 + 192 };
+
+        for (uint32_t index = 0; index < sprite.size(); ++index)
+        {
+            auto pixel = chip8::Memory::Bytes(8, 0x00);
+
+            vm.loadFrameBufferData(expectedAddesses[index], pixel);
+
+            REQUIRE_THAT(pixel, Catch::Equals(expectedPixels[index]));
+        }
+    }
+
     SECTION("Load DT register to Vx register")
     {
         auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t expectedByte = 0x10;
-
 
         auto opcodes = OpcodeList {
             chip8::opcode::encode6XKK(vxIndex, expectedByte),

@@ -55,6 +55,7 @@ const std::unordered_map<opcode::Opcode, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::Op
     { opcode::OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
     { opcode::OPCODE_BNNN, &Cpu::opcodeJumpOffset },
     { opcode::OPCODE_CXKK, &Cpu::opcodeRandomNumber },
+    { opcode::OPCODE_DXYN, &Cpu::opcodeDraw },
     { opcode::OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
@@ -392,6 +393,26 @@ void Cpu::opcodeRandomNumber()
     uint8_t number = randomizer_(bitGenerator_); 
 
     regs_.vx[op.x] = number & op.kk;
+}
+
+/// @brief Draw sprite to gpu framebuffer.
+///
+/// Opcode Dxyn (DRW Vx,Vy,nibble)
+void Cpu::opcodeDraw()
+{
+    auto op = opcode::decodeDXYN(opcode_);
+
+    Memory::Bytes sprite;
+
+    for (size_t offset = 0; offset < op.n; ++offset)
+    {
+        sprite.push_back(memory_.load<uint8_t>(regs_.i + offset));
+    }
+
+    if (gpu_.drawSprite(op.x, op.y, sprite))
+    {
+        regs_.vx[0xF] = 0x1;
+    }
 }
 
 /// @brief Load delay timer from register.

@@ -21,10 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <cstdio>
 #include <memory.hpp>
 #include "gpu.hpp"
 
 namespace chip8 {
+
+const uint16_t DISPLAY_WIDTH = 64;
+const uint16_t DISPLAY_HEIGHT = 32;
 
 /// @brief Construct a GPU instance with framebuffer.
 ///
@@ -41,6 +45,49 @@ void Gpu::clearFrameBuffer()
     {
         frameBuffer_.store(address, 0x00);
     }
+}
+
+bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
+{
+    bool erased = false;
+
+    for (size_t spriteIndex = 0; spriteIndex < sprite.size(); ++spriteIndex)
+    {
+        uint8_t yPixel = y + spriteIndex;
+
+        for (uint8_t bitIndex = 0x80, xPixel = x; bitIndex != 0; bitIndex >>= 1, ++xPixel)
+        {
+            uint8_t spriteValue = (sprite[spriteIndex] & bitIndex) ? 0xFF : 0x00;
+
+            uint16_t address = computeLinearAddress(xPixel, yPixel);
+            uint8_t pixel = frameBuffer_.load<uint8_t>(address) ^ spriteValue;
+
+            std::printf("Address 0x%04X    Sprite Value %02X    Pixel %02X    (x,y) = (%u,%u)\n", address, spriteValue, pixel, xPixel, yPixel);
+
+            if (pixel == 0)
+            {
+                erased = true;
+            }
+
+            frameBuffer_.store(address, pixel);
+        }
+    }
+
+    return erased;
+}
+
+/// @brief Compute address from (x,y) coords.
+///
+/// @param x X coordinate.
+/// @param y Y coordinate.
+/// @return 16-bit address.
+uint16_t Gpu::computeLinearAddress(uint8_t x, uint8_t y)
+{
+    // Wrap around screen
+    x &= (DISPLAY_WIDTH-1);
+    y &= (DISPLAY_HEIGHT-1);
+
+    return DISPLAY_WIDTH * y + x;
 }
 
 }  // chip8

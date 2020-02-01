@@ -25,6 +25,7 @@
 #define CHIP8_GPU_HPP
 
 #include <core.hpp>
+#include <memory.hpp>
 
 namespace chip8 {
 
@@ -37,8 +38,11 @@ class Gpu
         Gpu(Memory & frameBuffer);
 
         void clearFrameBuffer();
+        bool drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite);
 
     private:
+        uint16_t computeLinearAddress(uint8_t x, uint8_t y);
+
         Memory & frameBuffer_;
 };
 

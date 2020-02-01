@@ -132,6 +132,7 @@ class Cpu : public Processor
         void opcodeLoadIRegister();
         void opcodeJumpOffset();
         void opcodeRandomNumber();
+        void opcodeDraw();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
