@@ -27,24 +27,26 @@
 
 namespace chip8 {
 
-const uint16_t DISPLAY_WIDTH = 64;
-const uint16_t DISPLAY_HEIGHT = 32;
-
 
 /// @brief Construct a GPU instance with framebuffer.
 ///
 /// @param frameBuffer Framebuffer memory.
-Gpu::Gpu(Memory & frameBuffer)
-    : frameBuffer_(frameBuffer)
+GpuImpl::GpuImpl(Memory & framebuffer)
+    : framebuffer_(framebuffer)
+{
+}
+
+/// @brief Destroy the GPU instance.
+GpuImpl::~GpuImpl()
 {
 }
 
 /// @brief Clear framebuffer.
-void Gpu::clearFrameBuffer()
+void GpuImpl::clearFramebuffer()
 {
-    for (size_t address = 0; address < frameBuffer_.getSize(); ++address)
+    for (size_t address = 0; address < framebuffer_.getSize(); ++address)
     {
-        frameBuffer_.store(address, 0x00);
+        framebuffer_.store(address, 0x00);
     }
 }
 
@@ -53,7 +55,7 @@ void Gpu::clearFrameBuffer()
 /// @param x  X coordinate on display screen.
 /// @param y  Y coordinate on display screen.
 /// @return Pixel was erased.
-bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
+bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
 {
     bool erased = false;
 
@@ -66,7 +68,7 @@ bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
             uint8_t spriteValue = (sprite[spriteIndex] & bitIndex) ? 0xFF : 0x00;
 
             uint16_t address = computeLinearAddress(xPixel, yPixel);
-            uint8_t pixel = frameBuffer_.load<uint8_t>(address) ^ spriteValue;
+            uint8_t pixel = framebuffer_.load<uint8_t>(address) ^ spriteValue;
 
 #if 0
             std::printf("Address 0x%04X    Sprite Value %02X    Pixel %02X    (x,y) = (%u,%u)\n", address, spriteValue, pixel, xPixel, yPixel);
@@ -77,7 +79,7 @@ bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
                 erased = true;
             }
 
-            frameBuffer_.store(address, pixel);
+            framebuffer_.store(address, pixel);
         }
     }
 
@@ -89,7 +91,7 @@ bool Gpu::drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite)
 /// @param x X coordinate.
 /// @param y Y coordinate.
 /// @return 16-bit address.
-uint16_t Gpu::computeLinearAddress(uint8_t x, uint8_t y)
+uint16_t GpuImpl::computeLinearAddress(uint8_t x, uint8_t y)
 {
     // Wrap around screen
     x &= (DISPLAY_WIDTH-1);

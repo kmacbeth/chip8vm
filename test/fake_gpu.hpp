@@ -21,23 +21,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef CHIP8_CORE_HPP
-#define CHIP8_CORE_HPP
+#ifndef CHIP8_FAKEGPU_HPP
+#define CHIP8_FAKEGPU_HPP
 
-#include <cstddef>
-#include <cstdint>
-#include <memory>
-
-using std::size_t;
+#include <gpu.hpp>
 
 namespace chip8 {
 
-/// @brief System memory size.
-constexpr uint16_t SYSTEM_MEMORY_SIZE = 4096;
+/// @brief Fake GPU.
+class FakeGpu : public Gpu
+{
+    public:
+        struct DrawContext
+        {
+            uint8_t x;
+            uint8_t y;
+            Sprite sprite;
+        };
 
-/// @brief GPU framebuffer size.
-constexpr uint16_t FRAMEBUFFER_SIZE = 2048;
+        FakeGpu() = default;
+        ~FakeGpu() {}
+
+        void clearFramebuffer() override
+        {
+            ++clearCount;
+        }
+
+        bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) override
+        {
+            drawContext.x = x;
+            drawContext.y = y;
+            drawContext.sprite = sprite;
+            return spriteErased;
+        }
+
+        uint16_t clearCount = 0;
+        DrawContext drawContext;
+        bool spriteErased = false;
+};
 
 }  // chip8
 
-#endif  // CHIP8_CORE_HPP
+#endif  // CHIP8_FAKEGPU_HPP

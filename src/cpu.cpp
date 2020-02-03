@@ -32,39 +32,39 @@
 
 namespace chip8 {
 
-const std::unordered_map<opcode::Opcode, Cpu::OpcodeDecoder::OpcodeFunc> Cpu::OpcodeDecoder::opcodeTable_ = {
-    { opcode::OPCODE_00E0, &Cpu::opcodeClearDisplay },
-    { opcode::OPCODE_00EE, &Cpu::opcodeReturn },
-    { opcode::OPCODE_1NNN, &Cpu::opcodeJump },
-    { opcode::OPCODE_2NNN, &Cpu::opcodeCall },
-    { opcode::OPCODE_3XKK, &Cpu::opcodeSkipNextIfEquals },
-    { opcode::OPCODE_4XKK, &Cpu::opcodeSkipNextIfNotEquals },
-    { opcode::OPCODE_5XY0, &Cpu::opcodeSkipNextIfEqualsRegister },
-    { opcode::OPCODE_6XKK, &Cpu::opcodeLoadNumber },
-    { opcode::OPCODE_7XKK, &Cpu::opcodeAddNumber },
-    { opcode::OPCODE_8XY0, &Cpu::opcodeLoadRegister },
-    { opcode::OPCODE_8XY1, &Cpu::opcodeOrRegister },
-    { opcode::OPCODE_8XY2, &Cpu::opcodeAndRegister },
-    { opcode::OPCODE_8XY3, &Cpu::opcodeXorRegister },
-    { opcode::OPCODE_8XY4, &Cpu::opcodeAddRegister },
-    { opcode::OPCODE_8XY5, &Cpu::opcodeSubRegister },
-    { opcode::OPCODE_8XY6, &Cpu::opcodeShrRegister },
-    { opcode::OPCODE_8XY7, &Cpu::opcodeSubnRegister },
-    { opcode::OPCODE_8XYE, &Cpu::opcodeShlRegister },
-    { opcode::OPCODE_9XY0, &Cpu::opcodeSkipNextIfNotEqualsRegister },
-    { opcode::OPCODE_ANNN, &Cpu::opcodeLoadIRegister },
-    { opcode::OPCODE_BNNN, &Cpu::opcodeJumpOffset },
-    { opcode::OPCODE_CXKK, &Cpu::opcodeRandomNumber },
-    { opcode::OPCODE_DXYN, &Cpu::opcodeDraw },
-    { opcode::OPCODE_FX07, &Cpu::opcodeLoadRegisterFromDelayTimer },
-    { opcode::OPCODE_FX15, &Cpu::opcodeLoadDelayTimerFromRegister },
-    { opcode::OPCODE_FX18, &Cpu::opcodeLoadSoundTimerFromRegister },
+const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> CpuImpl::OpcodeDecoder::opcodeTable_ = {
+    { opcode::OPCODE_00E0, &CpuImpl::opcodeClearDisplay },
+    { opcode::OPCODE_00EE, &CpuImpl::opcodeReturn },
+    { opcode::OPCODE_1NNN, &CpuImpl::opcodeJump },
+    { opcode::OPCODE_2NNN, &CpuImpl::opcodeCall },
+    { opcode::OPCODE_3XKK, &CpuImpl::opcodeSkipNextIfEquals },
+    { opcode::OPCODE_4XKK, &CpuImpl::opcodeSkipNextIfNotEquals },
+    { opcode::OPCODE_5XY0, &CpuImpl::opcodeSkipNextIfEqualsRegister },
+    { opcode::OPCODE_6XKK, &CpuImpl::opcodeLoadNumber },
+    { opcode::OPCODE_7XKK, &CpuImpl::opcodeAddNumber },
+    { opcode::OPCODE_8XY0, &CpuImpl::opcodeLoadRegister },
+    { opcode::OPCODE_8XY1, &CpuImpl::opcodeOrRegister },
+    { opcode::OPCODE_8XY2, &CpuImpl::opcodeAndRegister },
+    { opcode::OPCODE_8XY3, &CpuImpl::opcodeXorRegister },
+    { opcode::OPCODE_8XY4, &CpuImpl::opcodeAddRegister },
+    { opcode::OPCODE_8XY5, &CpuImpl::opcodeSubRegister },
+    { opcode::OPCODE_8XY6, &CpuImpl::opcodeShrRegister },
+    { opcode::OPCODE_8XY7, &CpuImpl::opcodeSubnRegister },
+    { opcode::OPCODE_8XYE, &CpuImpl::opcodeShlRegister },
+    { opcode::OPCODE_9XY0, &CpuImpl::opcodeSkipNextIfNotEqualsRegister },
+    { opcode::OPCODE_ANNN, &CpuImpl::opcodeLoadIRegister },
+    { opcode::OPCODE_BNNN, &CpuImpl::opcodeJumpOffset },
+    { opcode::OPCODE_CXKK, &CpuImpl::opcodeRandomNumber },
+    { opcode::OPCODE_DXYN, &CpuImpl::opcodeDraw },
+    { opcode::OPCODE_FX07, &CpuImpl::opcodeLoadRegisterFromDelayTimer },
+    { opcode::OPCODE_FX15, &CpuImpl::opcodeLoadDelayTimerFromRegister },
+    { opcode::OPCODE_FX18, &CpuImpl::opcodeLoadSoundTimerFromRegister },
 };
 
 /// @brief Construct an opcode decoder.
 ///
 /// @param cpu Reference to the CPU instance.
-Cpu::OpcodeDecoder::OpcodeDecoder(Cpu & cpu)
+CpuImpl::OpcodeDecoder::OpcodeDecoder(CpuImpl & cpu)
     : cpu_{cpu}
 {
 }
@@ -72,7 +72,7 @@ Cpu::OpcodeDecoder::OpcodeDecoder(Cpu & cpu)
 /// @brief Decode opcode.
 ///
 /// @param opcode Opcode to decode and execute.
-void Cpu::OpcodeDecoder::decode(opcode::Opcode opcode)
+void CpuImpl::OpcodeDecoder::decode(opcode::Opcode opcode)
 {
     uint16_t decodedOpcode = opcode & 0xF000;
 
@@ -98,7 +98,7 @@ void Cpu::OpcodeDecoder::decode(opcode::Opcode opcode)
 ///
 /// @param memory Reference to memory.
 /// @param gpu    Reference to GPU displau.
-Cpu::Cpu(Memory & memory, Gpu & gpu)
+CpuImpl::CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu)
     : memory_{memory}
     , gpu_{gpu}
     , regs_{}
@@ -111,20 +111,20 @@ Cpu::Cpu(Memory & memory, Gpu & gpu)
 }
 
 /// @brief Destroy a CPU instance.
-Cpu::~Cpu()
+CpuImpl::~CpuImpl()
 {
 }
 
 /// @brief Reset cpu.
 ///
 /// Reset CPU states, such as program counter and registers.
-void Cpu::reset()
+void CpuImpl::reset()
 {
     resetRegisters();
 }
 
 /// @brief Process a cpu tick.
-void Cpu::tick()
+void CpuImpl::tick()
 {
     opcode_ = memory_.load<opcode::Opcode>(regs_.pc);
     regs_.pc += PC_INCR;
@@ -144,9 +144,9 @@ void Cpu::tick()
 
 /// @brief Reset CPU registers
 /// Reset CPU states, such as program counter and registers.
-void Cpu::resetRegisters()
+void CpuImpl::resetRegisters()
 {
-    regs_.pc = SYSTEM_START_POINT;
+    regs_.pc = PROGRAM_START;
     std::fill(regs_.vx, regs_.vx + sizeof(regs_.vx), 0);
     regs_.sp = 0;
     regs_.i  = 0;
@@ -157,15 +157,15 @@ void Cpu::resetRegisters()
 /// @brief Clear display.
 ///
 /// Opcode 00E0 (CLS)
-void Cpu::opcodeClearDisplay()
+void CpuImpl::opcodeClearDisplay()
 {
-    gpu_.clearFrameBuffer();
+    gpu_->clearFramebuffer();
 }
 
 /// @brief Return from subroutine.
 ///
 /// Opcode 00EE (RET)
-void Cpu::opcodeReturn()
+void CpuImpl::opcodeReturn()
 {
     if (regs_.sp > 0)
     {
@@ -178,7 +178,7 @@ void Cpu::opcodeReturn()
 /// @brief Jump to location.
 ///
 /// Opcode 1NNN (jp addr)
-void Cpu::opcodeJump()
+void CpuImpl::opcodeJump()
 {
     regs_.pc = opcode::decode1NNN(opcode_).nnn;
 }
@@ -186,7 +186,7 @@ void Cpu::opcodeJump()
 /// @brief Return from subroutine.
 ///
 /// Opcode 2NNN (call addr)
-void Cpu::opcodeCall()
+void CpuImpl::opcodeCall()
 {
     regs_.stack[regs_.sp++] = regs_.pc;
     regs_.pc = opcode::decode2NNN(opcode_).nnn;
@@ -195,7 +195,7 @@ void Cpu::opcodeCall()
 /// @brief Skip next opcode if equals byte.
 ///
 /// Opcode 3XKK (se Vx,byte)
-void Cpu::opcodeSkipNextIfEquals()
+void CpuImpl::opcodeSkipNextIfEquals()
 {
     auto op = opcode::decode3XKK(opcode_);
 
@@ -208,7 +208,7 @@ void Cpu::opcodeSkipNextIfEquals()
 /// @brief Skip next opcode if not equals byte.
 ///
 /// Opcode 4XKK (sne Vx,byte)
-void Cpu::opcodeSkipNextIfNotEquals()
+void CpuImpl::opcodeSkipNextIfNotEquals()
 {
     auto op = opcode::decode4XKK(opcode_);
 
@@ -221,7 +221,7 @@ void Cpu::opcodeSkipNextIfNotEquals()
 /// @brief Skip next opcode if Vx register equals Vy register.
 ///
 /// Opcode 5YX0 (se Vx,Vy)
-void Cpu::opcodeSkipNextIfEqualsRegister()
+void CpuImpl::opcodeSkipNextIfEqualsRegister()
 {
     auto op = opcode::decode5XY0(opcode_);
 
@@ -234,7 +234,7 @@ void Cpu::opcodeSkipNextIfEqualsRegister()
 /// @brief Load a number to register Vx
 ///
 /// Opcode 6xkk (LD Vx,byte)
-void Cpu::opcodeLoadNumber()
+void CpuImpl::opcodeLoadNumber()
 {
     auto op = opcode::decode6XKK(opcode_);
 
@@ -244,7 +244,7 @@ void Cpu::opcodeLoadNumber()
 /// @brief Add a number to register Vx
 ///
 /// Opcode 7xkk (ADD Vx,byte)
-void Cpu::opcodeAddNumber()
+void CpuImpl::opcodeAddNumber()
 {
     auto op = opcode::decode7XKK(opcode_);
 
@@ -254,7 +254,7 @@ void Cpu::opcodeAddNumber()
 /// @brief Load register Vy to register Vx
 ///
 /// Opcode 8xy0 (LD Vx,Vy)
-void Cpu::opcodeLoadRegister()
+void CpuImpl::opcodeLoadRegister()
 {
     auto op = opcode::decode8XY0(opcode_);
 
@@ -264,7 +264,7 @@ void Cpu::opcodeLoadRegister()
 /// @brief Or register Vy to register Vx
 ///
 /// Opcode 8xy1 (OR Vx,Vy)
-void Cpu::opcodeOrRegister()
+void CpuImpl::opcodeOrRegister()
 {
     auto op = opcode::decode8XY1(opcode_);
 
@@ -274,7 +274,7 @@ void Cpu::opcodeOrRegister()
 /// @brief And register Vy to register Vx
 ///
 /// Opcode 8xy2 (AND Vx,Vy)
-void Cpu::opcodeAndRegister()
+void CpuImpl::opcodeAndRegister()
 {
     auto op = opcode::decode8XY2(opcode_);
 
@@ -284,7 +284,7 @@ void Cpu::opcodeAndRegister()
 /// @brief Xor register Vy to register Vx
 ///
 /// Opcode 8xy3 (XOR Vx,Vy)
-void Cpu::opcodeXorRegister()
+void CpuImpl::opcodeXorRegister()
 {
     auto op = opcode::decode8XY3(opcode_);
 
@@ -294,7 +294,7 @@ void Cpu::opcodeXorRegister()
 /// @brief Add register Vy to register Vx
 ///
 /// Opcode 8xy4 (ADD Vx,Vy)
-void Cpu::opcodeAddRegister()
+void CpuImpl::opcodeAddRegister()
 {
     auto op = opcode::decode8XY4(opcode_);
 
@@ -307,7 +307,7 @@ void Cpu::opcodeAddRegister()
 /// @brief Sub register Vy to register Vx
 ///
 /// Opcode 8xy5 (SUB Vx,Vy)
-void Cpu::opcodeSubRegister()
+void CpuImpl::opcodeSubRegister()
 {
     auto op = opcode::decode8XY5(opcode_);
 
@@ -320,7 +320,7 @@ void Cpu::opcodeSubRegister()
 /// @brief Shift right register Vy to register Vx
 ///
 /// Opcode 8xy6 (SHR Vx,Vy)
-void Cpu::opcodeShrRegister()
+void CpuImpl::opcodeShrRegister()
 {
     auto op = opcode::decode8XY6(opcode_);
 
@@ -331,7 +331,7 @@ void Cpu::opcodeShrRegister()
 /// @brief Sub reverse register Vx to register Vy
 ///
 /// Opcode 8xy7 (SUBN Vx,Vy)
-void Cpu::opcodeSubnRegister()
+void CpuImpl::opcodeSubnRegister()
 {
     auto op = opcode::decode8XY7(opcode_);
 
@@ -344,7 +344,7 @@ void Cpu::opcodeSubnRegister()
 /// @brief Shift left register Vy to register Vx
 ///
 /// Opcode 8xyE (SHL Vx,Vy)
-void Cpu::opcodeShlRegister()
+void CpuImpl::opcodeShlRegister()
 {
     auto op = opcode::decode8XY6(opcode_);
 
@@ -355,7 +355,7 @@ void Cpu::opcodeShlRegister()
 /// @brief Skip next opcode if Vx not equals Vy.
 ///
 /// Opcode 9XY0 (sne Vx,Vy)
-void Cpu::opcodeSkipNextIfNotEqualsRegister()
+void CpuImpl::opcodeSkipNextIfNotEqualsRegister()
 {
     auto op = opcode::decode9XY0(opcode_);
 
@@ -368,7 +368,7 @@ void Cpu::opcodeSkipNextIfNotEqualsRegister()
 /// @brief Load I register with 12-bit address
 ///
 /// Opcode Annn (LD I,addr)
-void Cpu::opcodeLoadIRegister()
+void CpuImpl::opcodeLoadIRegister()
 {
     regs_.i = opcode::decodeANNN(opcode_).nnn;
 }
@@ -376,7 +376,7 @@ void Cpu::opcodeLoadIRegister()
 /// @brief Jump to address with offset.
 ///
 /// Opcode BNNN (JP V0,nnn)
-void Cpu::opcodeJumpOffset()
+void CpuImpl::opcodeJumpOffset()
 {
     auto op = opcode::decodeBNNN(opcode_);
 
@@ -386,7 +386,7 @@ void Cpu::opcodeJumpOffset()
 /// @brief Random number at register Vx.
 ///
 /// Opcode Cxkk (RND Vx,byte)
-void Cpu::opcodeRandomNumber()
+void CpuImpl::opcodeRandomNumber()
 {
     auto op = opcode::decodeCXKK(opcode_);
 
@@ -398,7 +398,7 @@ void Cpu::opcodeRandomNumber()
 /// @brief Draw sprite to gpu framebuffer.
 ///
 /// Opcode Dxyn (DRW Vx,Vy,nibble)
-void Cpu::opcodeDraw()
+void CpuImpl::opcodeDraw()
 {
     auto op = opcode::decodeDXYN(opcode_);
 
@@ -409,7 +409,7 @@ void Cpu::opcodeDraw()
         sprite.push_back(memory_.load<uint8_t>(regs_.i + offset));
     }
 
-    if (gpu_.drawSprite(op.x, op.y, sprite))
+    if (gpu_->drawSprite(op.x, op.y, sprite))
     {
         regs_.vx[0xF] = 0x1;
     }
@@ -418,7 +418,7 @@ void Cpu::opcodeDraw()
 /// @brief Load delay timer from register.
 ///
 /// Opcode Fx15 (LD DT,Vx)
-void Cpu::opcodeLoadDelayTimerFromRegister()
+void CpuImpl::opcodeLoadDelayTimerFromRegister()
 {
     auto op = opcode::decodeFX15(opcode_);
 
@@ -428,7 +428,7 @@ void Cpu::opcodeLoadDelayTimerFromRegister()
 /// @brief Load register from delay timer.
 ///
 /// Opcode Fx07 (LD Vx,DT)
-void Cpu::opcodeLoadRegisterFromDelayTimer()
+void CpuImpl::opcodeLoadRegisterFromDelayTimer()
 {
     auto op = opcode::decodeFX07(opcode_);
 
@@ -438,7 +438,7 @@ void Cpu::opcodeLoadRegisterFromDelayTimer()
 /// @brief Load sound timer from register.
 ///
 /// Opcode Fx18 (LD ST,Vx)
-void Cpu::opcodeLoadSoundTimerFromRegister()
+void CpuImpl::opcodeLoadSoundTimerFromRegister()
 {
     uint8_t regSrc = (opcode_ >> 8) & 0xF;
 

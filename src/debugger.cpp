@@ -30,8 +30,8 @@ namespace chip8 {
 ///
 /// @param cpu    Reference to cpu.
 /// @param memory Reference to system memory.
-Debugger::Debugger(Processor & cpu, Memory & memory)
-    : Processor{}
+Debugger::Debugger(std::shared_ptr<Cpu> const& cpu, Memory & memory)
+    : Cpu{}
     , cpu_{cpu}
     , memory_{memory}
     , traces_{Traces::NONE}
@@ -48,13 +48,13 @@ Debugger::~Debugger()
 /// @brief Reset CPU.
 void Debugger::reset()
 {
-    cpu_.reset();
+    cpu_->reset();
 }
 
 /// @brief Request CPU tick
 void Debugger::tick()
 {
-    cpu_.tick();
+    cpu_->tick();
 
     opcode_ = getOpcode();
     regContext_ = getRegContext();
@@ -78,9 +78,9 @@ void Debugger::tick()
 /// @brief Get CPU registers context.
 ///
 /// @return Registers context.
-Processor::RegContext const& Debugger::getRegContext() const
+Cpu::RegContext const& Debugger::getRegContext() const
 {
-    return cpu_.getRegContext();
+    return cpu_->getRegContext();
 }
 
 /// @brief Get opcode.
@@ -88,7 +88,7 @@ Processor::RegContext const& Debugger::getRegContext() const
 /// @return Opcode.
 opcode::Opcode Debugger::getOpcode() const
 {
-    return cpu_.getOpcode();
+    return cpu_->getOpcode();
 }
 
 /// @brief Trace opcode to console.
@@ -118,9 +118,9 @@ void Debugger::traceStack()
     std::printf("========================================\n");
     std::printf(" + STACK:\n");
 
-    for (uint16_t i = 0; i < chip8::Processor::STACK_SIZE; ++i)
+    for (uint16_t i = 0; i < chip8::Cpu::STACK_SIZE; ++i)
     {
-        std::printf(" %2s %02X: %04X", ((i < (chip8::Processor::STACK_SIZE - 1)) ? "|-" : "`-"),
+        std::printf(" %2s %02X: %04X", ((i < (chip8::Cpu::STACK_SIZE - 1)) ? "|-" : "`-"),
                     i, regContext_.stack[i]);
         std::puts((i + 1) == regContext_.sp ? " <-- SP" : "");
     }

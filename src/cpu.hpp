@@ -34,8 +34,8 @@ namespace chip8 {
 class Memory;
 class Gpu;
 
-/// @brief Represent a CPU interface.
-class Processor
+/// @brief Represent a CHIP-8 CPU.
+class Cpu
 {
     public:
         /// @brief Program counter increment.
@@ -44,6 +44,8 @@ class Processor
         static constexpr uint8_t REG_COUNT = 16;
         /// @brief Stack size.
         static constexpr uint8_t STACK_SIZE = 16;
+        /// @brief Program start point in memory.
+        static constexpr uint16_t PROGRAM_START = 0x200;
 
         /// @brief Register context for debugging/testing
         struct RegContext
@@ -67,7 +69,7 @@ class Processor
             uint8_t  st;
         };
 
-        virtual ~Processor() {}
+        virtual ~Cpu() {}
 
         virtual void reset() = 0;
         virtual void tick() = 0;
@@ -76,12 +78,12 @@ class Processor
         virtual opcode::Opcode    getOpcode() const = 0;
 };
 
-/// @brief Represent the CHIP-8 CPU.
-class Cpu : public Processor
+/// @brief Represent a CHIP-8 CPU implementation.
+class CpuImpl : public Cpu
 {
     public:
-        Cpu(Memory & memory, Gpu & gpu);
-        ~Cpu();
+        CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu);
+        ~CpuImpl();
 
         virtual void reset();
         virtual void tick();
@@ -96,18 +98,18 @@ class Cpu : public Processor
         class OpcodeDecoder
         {
             public:
-                OpcodeDecoder(Cpu & cpu);
+                OpcodeDecoder(CpuImpl & cpu);
 
                 void decode(opcode::Opcode opcode);
 
             private:
-                using OpcodeFunc = void (Cpu::*)();
+                using OpcodeFunc = void (CpuImpl::*)();
 
                 /// @brief Opcode dispatch table.
                 static const std::unordered_map<opcode::Opcode, OpcodeFunc> opcodeTable_;
 
                 /// @brief Reference to cpu instance.
-                Cpu & cpu_;
+                CpuImpl & cpu_;
         };
 
         void opcodeClearDisplay();
@@ -140,7 +142,7 @@ class Cpu : public Processor
         /// @brief Main memory instance.
         Memory & memory_;
         /// @brief GPU display.
-        Gpu & gpu_;
+        std::shared_ptr<Gpu> gpu_;
         /// @brief Register context.
         RegContext regs_;
 

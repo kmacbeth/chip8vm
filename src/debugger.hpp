@@ -29,7 +29,7 @@
 namespace chip8 {
 
 /// @brief Represent a CPU debugger.
-class Debugger : public Processor
+class Debugger : public Cpu
 {
     public:
         /// @brief Debug trace types.
@@ -43,7 +43,7 @@ class Debugger : public Processor
             ALL       = 0x7
         };
 
-        Debugger(Processor & cpu, Memory & memory);
+        Debugger(std::shared_ptr<Cpu>const& cpu, Memory & memory);
         ~Debugger();
 
         void setTraces(Traces traces) { traces_ = traces; }
@@ -59,18 +59,18 @@ class Debugger : public Processor
         void tick() override;
 
     private:
-        Processor::RegContext const& getRegContext() const override;
+        Cpu::RegContext const& getRegContext() const override;
         opcode::Opcode getOpcode() const override;
 
         void traceRegContext();
         void traceOpcode();
         void traceStack();
 
-        Processor & cpu_;
+        std::shared_ptr<Cpu> cpu_;
         Memory & memory_;
         Traces traces_;
 
-        Processor::RegContext regContext_;
+        Cpu::RegContext regContext_;
         opcode::Opcode opcode_;
 };
 

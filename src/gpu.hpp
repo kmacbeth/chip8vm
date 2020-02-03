@@ -29,24 +29,35 @@
 
 namespace chip8 {
 
-class Memory;
+using Sprite = Memory::Bytes;
 
-/// @brief Represent the CHIP-8 GPU for display.
+/// @brief Represent the CHIP-8 GPU.
 class Gpu
 {
     public:
         static const uint16_t DISPLAY_WIDTH = 64;
         static const uint16_t DISPLAY_HEIGHT = 32;
 
-        Gpu(Memory & frameBuffer);
+        virtual ~Gpu() {}
 
-        void clearFrameBuffer();
-        bool drawSprite(uint8_t x, uint8_t y, Memory::Bytes const& sprite);
+        virtual void clearFramebuffer() = 0;
+        virtual bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) = 0;
+};
+
+/// @brief Represent the CHIP-8 GPU implementation.
+class GpuImpl : public Gpu
+{
+    public:
+        GpuImpl(Memory & frameBuffer);
+        ~GpuImpl();
+
+        void clearFramebuffer() override;
+        bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) override;
 
     private:
-        uint16_t computeLinearAddress(uint8_t x, uint8_t y);
+        static uint16_t computeLinearAddress(uint8_t x, uint8_t y);
 
-        Memory & frameBuffer_;
+        Memory & framebuffer_;
 };
 
 }  // chip8

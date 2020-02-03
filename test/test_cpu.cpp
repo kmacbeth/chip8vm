@@ -26,8 +26,8 @@
 
 #include <memory.hpp>
 #include <cpu.hpp>
-#include <gpu.hpp>
 #include <debugger.hpp>
+#include <fake_gpu.hpp>
 
 using OpcodeList = chip8::Memory::Words;
 using Data = chip8::Memory::Bytes;
@@ -37,16 +37,16 @@ class Chip8TestVm
     public:
         Chip8TestVm()
             : memory_{chip8::SYSTEM_MEMORY_SIZE}
-            , frameBuffer_{chip8::FRAMEBUFFER_SIZE}
-            , gpu_{frameBuffer_}
-            , cpu_{memory_, gpu_}
+            , framebuffer_{chip8::FRAMEBUFFER_SIZE}
+            , fakeGpu_{std::make_shared<chip8::FakeGpu>()}
+            , cpu_{std::make_shared<chip8::CpuImpl>(memory_, fakeGpu_)}
             , debugger_{cpu_, memory_}
         {
         }
 
         void storeCode(OpcodeList const& opcodes)
         {
-            memory_.storeBuffer(chip8::SYSTEM_START_POINT, opcodes, chip8::Memory::Endian::LITTLE);
+            memory_.storeBuffer(chip8::Cpu::PROGRAM_START, opcodes, chip8::Memory::Endian::LITTLE);
         }
 
         void storeData(uint16_t startAddress, Data const& data)
@@ -54,23 +54,23 @@ class Chip8TestVm
             memory_.storeBuffer(startAddress, data);
         }
 
-        void storeFrameBuffer(chip8::Memory::Bytes const& bytes)
+        void storeFramebuffer(chip8::Memory::Bytes const& bytes)
         {
-            frameBuffer_.storeBuffer(0x0000, bytes);
+            framebuffer_.storeBuffer(0x0000, bytes);
         }
 
-        void loadFrameBuffer(chip8::Memory::Bytes & bytes)
+        void loadFramebuffer(chip8::Memory::Bytes & bytes)
         {
-            loadFrameBufferData(0x0000, bytes);
+            loadFramebufferData(0x0000, bytes);
         }
 
-        void loadFrameBufferData(uint16_t startAddress, chip8::Memory::Bytes & bytes)
+        void loadFramebufferData(uint16_t startAddress, chip8::Memory::Bytes & bytes)
         {
             for (size_t offset = 0; offset < bytes.size(); ++offset)
             {
                 uint16_t address = startAddress + offset;
 
-                bytes[offset] = frameBuffer_.load<uint8_t>(address);
+                bytes[offset] = framebuffer_.load<uint8_t>(address);
             }
         }
 
@@ -86,11 +86,13 @@ class Chip8TestVm
 
         chip8::Debugger const& getDebugger() { return debugger_; }
 
+        chip8::FakeGpu & getFakeGpu() { return *fakeGpu_.get(); }
+
     private:
         chip8::Memory memory_;
-        chip8::Memory frameBuffer_;
-        chip8::Gpu gpu_;
-        chip8::Cpu cpu_;
+        chip8::Memory framebuffer_;
+        std::shared_ptr<chip8::FakeGpu> fakeGpu_;
+        std::shared_ptr<chip8::Cpu> cpu_;
         chip8::Debugger debugger_;
 };
 
@@ -101,11 +103,6 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Clear display")
     {
-        auto frameBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0xFF);
-        auto clearBuffer = chip8::Memory::Bytes(chip8::FRAMEBUFFER_SIZE, 0x00);
-
-        vm.storeFrameBuffer(frameBuffer);
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode00E0()
         };
@@ -113,14 +110,12 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        vm.loadFrameBuffer(frameBuffer);
-
-        REQUIRE_THAT(frameBuffer, Catch::Equals(clearBuffer));
+        REQUIRE(vm.getFakeGpu().clearCount == 1);
     }
 
     SECTION("Jump to location")
     {
-        uint16_t address = chip8::SYSTEM_START_POINT + 0x0008;
+        uint16_t address = chip8::Cpu::PROGRAM_START + 0x0008;
 
         auto opcodes = OpcodeList {
             chip8::opcode::encode1NNN(address)
@@ -135,7 +130,7 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Call subroutine")
     {
-        uint16_t address = chip8::SYSTEM_START_POINT + 0x0008;
+        uint16_t address = chip8::Cpu::PROGRAM_START + 0x0008;
 
         auto opcodes = OpcodeList {
             chip8::opcode::encode2NNN(address)
@@ -150,7 +145,7 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Return from subroutine")
     {
-        uint16_t address = chip8::SYSTEM_START_POINT + 0x0008;
+        uint16_t address = chip8::Cpu::PROGRAM_START + 0x0008;
 
         auto opcodes = OpcodeList {
             chip8::opcode::encode2NNN(address),
@@ -168,7 +163,7 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
         vm.run();
         REQUIRE(vm.getDebugger().getStackPointer() == 0);
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 2);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
     }
 
     SECTION("Load number to Vx register")
@@ -200,10 +195,10 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 4);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 6);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 6);
     }
 
     SECTION("Skip next opcode if Vx register not equals byte")
@@ -220,10 +215,10 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 4);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 6);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 6);
     }
 
     SECTION("Skip next opcode if Vx register equals Vy register")
@@ -243,13 +238,13 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vyIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 4);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
 
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) == 0x01);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 8);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 8);
     }
 
     SECTION("Add byte to Vx register")
@@ -574,13 +569,13 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 0x2);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x2);
 
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterVx(vxIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::SYSTEM_START_POINT + 0x8);
+        REQUIRE(vm.getDebugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x8);
     }
 
     SECTION("Load address to I register")
@@ -597,8 +592,8 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
     SECTION("Jump to location plus V0 offset")
     {
-        uint16_t address1 = chip8::SYSTEM_START_POINT + 0x4;
-        uint16_t address2 = chip8::SYSTEM_START_POINT + 0xA;
+        uint16_t address1 = chip8::Cpu::PROGRAM_START + 0x4;
+        uint16_t address2 = chip8::Cpu::PROGRAM_START + 0xA;
         uint16_t offset = 0x2;
 
         auto opcodes = OpcodeList {
@@ -646,7 +641,7 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
     {
         const uint16_t START_DATA_ADDRESS = 0x800;
 
-        auto sprite = chip8::Memory::Bytes{0xFF, 0x81, 0x81, 0xFF};
+        auto sprite = chip8::Sprite{0x01};
         auto x = 1u;
         auto y = 2u;
 
@@ -662,38 +657,22 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterI() == START_DATA_ADDRESS);
 
+        vm.getFakeGpu().spriteErased = true;
+
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterVx(0xF) == 0x1);
 
-        std::vector<chip8::Memory::Bytes> expectedPixels = {
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
-            {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF},
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-        };
-
-        std::vector<uint16_t> expectedAddesses = {
-            129,
-            129 + 1 * chip8::Gpu::DISPLAY_WIDTH,
-            129 + 2 * chip8::Gpu::DISPLAY_WIDTH,
-            129 + 3 * chip8::Gpu::DISPLAY_WIDTH
-        };
-
-        for (uint32_t index = 0; index < sprite.size(); ++index)
-        {
-            auto pixel = chip8::Memory::Bytes(8, 0x00);
-
-            vm.loadFrameBufferData(expectedAddesses[index], pixel);
-
-            REQUIRE_THAT(pixel, Catch::Equals(expectedPixels[index]));
-        }
+        auto drawContext = vm.getFakeGpu().drawContext;
+        REQUIRE(drawContext.x == x);
+        REQUIRE(drawContext.y == y);
+        REQUIRE(drawContext.sprite[0] == 0x1);
     }
 
     SECTION("Draw sprite does not erase pixel.")
     {
         const uint16_t START_DATA_ADDRESS = 0x800;
 
-        auto sprite = chip8::Memory::Bytes{0xFF, 0xFF, 0xFF, 0xFF};
+        auto sprite = chip8::Sprite{0x00};
         auto x = 1u;
         auto y = 2u;
 
@@ -709,31 +688,15 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterI() == START_DATA_ADDRESS);
 
+        vm.getFakeGpu().spriteErased = false;
+
         vm.run();
         REQUIRE(vm.getDebugger().getRegisterVx(0xF) == 0x0);
 
-        std::vector<chip8::Memory::Bytes> expectedPixels = {
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-        };
-
-        std::vector<uint16_t> expectedAddesses = {
-            129,
-            129 + 1 * chip8::Gpu::DISPLAY_WIDTH,
-            129 + 2 * chip8::Gpu::DISPLAY_WIDTH,
-            129 + 3 * chip8::Gpu::DISPLAY_WIDTH
-        };
-
-        for (uint32_t index = 0; index < sprite.size(); ++index)
-        {
-            auto pixel = chip8::Memory::Bytes(8, 0x00);
-
-            vm.loadFrameBufferData(expectedAddesses[index], pixel);
-
-            REQUIRE_THAT(pixel, Catch::Equals(expectedPixels[index]));
-        }
+        auto drawContext = vm.getFakeGpu().drawContext;
+        REQUIRE(drawContext.x == x);
+        REQUIRE(drawContext.y == y);
+        REQUIRE(drawContext.sprite[0] == 0x0);
     }
 
     SECTION("Load DT register to Vx register")
