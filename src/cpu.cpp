@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <memory.hpp>
 #include <gpu.hpp>
+#include <keyboard.hpp>
 #include "cpu.hpp"
 
 
@@ -56,6 +57,7 @@ const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> Cpu
     { opcode::OPCODE_BNNN, &CpuImpl::opcodeJumpOffset },
     { opcode::OPCODE_CXKK, &CpuImpl::opcodeRandomNumber },
     { opcode::OPCODE_DXYN, &CpuImpl::opcodeDraw },
+    { opcode::OPCODE_EX9E, &CpuImpl::opcodeSkipNextIfKeyEqualsRegister },
     { opcode::OPCODE_FX07, &CpuImpl::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &CpuImpl::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &CpuImpl::opcodeLoadSoundTimerFromRegister },
@@ -98,9 +100,10 @@ void CpuImpl::OpcodeDecoder::decode(opcode::Opcode opcode)
 ///
 /// @param memory Reference to memory.
 /// @param gpu    Reference to GPU displau.
-CpuImpl::CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu)
+CpuImpl::CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu, std::shared_ptr<Keyboard> const& keyboard)
     : memory_{memory}
     , gpu_{gpu}
+    , keyboard_{keyboard}
     , regs_{}
     , opcodeDecoder_{*this}
     , opcode_{0x0000}
@@ -412,6 +415,19 @@ void CpuImpl::opcodeDraw()
     if (gpu_->drawSprite(op.x, op.y, sprite))
     {
         regs_.vx[0xF] = 0x1;
+    }
+}
+
+/// @brief Skip next instruction if key equals Vx value.
+///
+/// Opcode Ex9E (SKP Vx)
+void CpuImpl::opcodeSkipNextIfKeyEqualsRegister()
+{
+    auto op = opcode::decodeEX9E(opcode_);
+
+    if (keyboard_->isKeyPressed(regs_.vx[op.x]))
+    {
+        regs_.pc += 2;
     }
 }
 

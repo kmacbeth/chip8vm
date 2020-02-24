@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Martin Lafreniere
+ * Copyright (c) 2020 Martin Lafreniere
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -9,10 +9,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,19 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <memory.hpp>
-#include <gpu.hpp>
-#include <keyboard.hpp>
-#include <cpu.hpp>
+#ifndef CHIP8_KEYBOARD_HPP
+#define CHIP8_KEYBOARD_HPP
 
-int main(int argc, char * argv[])
+#include <core.hpp>
+
+namespace chip8 {
+
+/// @brief Keyboard interface
+class Keyboard
 {
-    chip8::Memory memory = chip8::Memory{chip8::SYSTEM_MEMORY_SIZE};
-    chip8::Memory framebuffer = chip8::Memory{chip8::FRAMEBUFFER_SIZE};
+    public:
+        static constexpr uint32_t KEY_COUNT = 16;
 
-    std::shared_ptr<chip8::Gpu> gpu = std::make_shared<chip8::GpuImpl>(framebuffer);
-    std::shared_ptr<chip8::Keyboard> keyboard = std::make_shared<chip8::KeyboardImpl>();
-    std::shared_ptr<chip8::Cpu> cpu = std::make_shared<chip8::CpuImpl>(memory, gpu, keyboard);
+        virtual ~Keyboard() {}
 
-    return 0;
-}
+        virtual void pressKey(uint16_t key) = 0;
+        virtual void releaseKey(uint16_t key) = 0;
+        virtual bool isKeyPressed(uint16_t key) const  = 0;
+};
+
+/// @brief Keyboard implementation
+class KeyboardImpl : public Keyboard
+{
+    public:
+        KeyboardImpl() { }
+        ~KeyboardImpl() { }
+
+        void pressKey(uint16_t key) override { }
+        void releaseKey(uint16_t key) override { }
+        bool isKeyPressed(uint16_t key) const override { return false; }
+};
+
+}  // chip8
+
+#endif  // CHIP8_KEYBOARD_HPP

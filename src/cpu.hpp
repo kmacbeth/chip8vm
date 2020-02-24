@@ -33,6 +33,7 @@ namespace chip8 {
 
 class Memory;
 class Gpu;
+class Keyboard;
 
 /// @brief Represent a CHIP-8 CPU.
 class Cpu
@@ -82,7 +83,7 @@ class Cpu
 class CpuImpl : public Cpu
 {
     public:
-        CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu);
+        CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu, std::shared_ptr<Keyboard> const& keyboard);
         ~CpuImpl();
 
         virtual void reset();
@@ -135,6 +136,7 @@ class CpuImpl : public Cpu
         void opcodeJumpOffset();
         void opcodeRandomNumber();
         void opcodeDraw();
+        void opcodeSkipNextIfKeyEqualsRegister();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
@@ -143,6 +145,8 @@ class CpuImpl : public Cpu
         Memory & memory_;
         /// @brief GPU display.
         std::shared_ptr<Gpu> gpu_;
+        /// @brief Keyboard
+        std::shared_ptr<Keyboard> keyboard_;
         /// @brief Register context.
         RegContext regs_;
 
