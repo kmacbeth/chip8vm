@@ -58,6 +58,7 @@ const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> Cpu
     { opcode::OPCODE_CXKK, &CpuImpl::opcodeRandomNumber },
     { opcode::OPCODE_DXYN, &CpuImpl::opcodeDraw },
     { opcode::OPCODE_EX9E, &CpuImpl::opcodeSkipNextIfKeyEqualsRegister },
+    { opcode::OPCODE_EXA1, &CpuImpl::opcodeSkipNextIfKeyNotEqualsRegister },
     { opcode::OPCODE_FX07, &CpuImpl::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &CpuImpl::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &CpuImpl::opcodeLoadSoundTimerFromRegister },
@@ -393,7 +394,7 @@ void CpuImpl::opcodeRandomNumber()
 {
     auto op = opcode::decodeCXKK(opcode_);
 
-    uint8_t number = randomizer_(bitGenerator_); 
+    uint8_t number = randomizer_(bitGenerator_);
 
     regs_.vx[op.x] = number & op.kk;
 }
@@ -426,6 +427,19 @@ void CpuImpl::opcodeSkipNextIfKeyEqualsRegister()
     auto op = opcode::decodeEX9E(opcode_);
 
     if (keyboard_->isKeyPressed(regs_.vx[op.x]))
+    {
+        regs_.pc += 2;
+    }
+}
+
+/// @brief Skip next instruction if key not equals Vx value.
+///
+/// Opcode ExA1 (SKNP Vx)
+void CpuImpl::opcodeSkipNextIfKeyNotEqualsRegister()
+{
+    auto op = opcode::decodeEXA1(opcode_);
+
+    if (!keyboard_->isKeyPressed(regs_.vx[op.x]))
     {
         regs_.pc += 2;
     }

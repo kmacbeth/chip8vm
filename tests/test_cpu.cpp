@@ -28,8 +28,8 @@
 #include <cpu.hpp>
 #include <debugger.hpp>
 
-#include <fake_gpu.hpp>
-#include <fake_keyboard.hpp>
+#include "fake_gpu.hpp"
+#include "fake_keyboard.hpp"
 
 using OpcodeList = chip8::Memory::Words;
 using Data = chip8::Memory::Bytes;
@@ -176,8 +176,8 @@ TEST_CASE("Test return from subroutine", "[opcode]")
 TEST_CASE("Test load number to Vx register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
-
     auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+
     uint16_t expectedByte = 0xAB;
 
     auto opcodes = OpcodeList {
@@ -193,11 +193,10 @@ TEST_CASE("Test load number to Vx register", "[opcode]")
 TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
 {
     auto vm = Chip8TestVm{};
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
 
     SECTION("Vx register is equal to number")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode3XKK(vxIndex, 0x00),
         };
@@ -212,8 +211,6 @@ TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
 
     SECTION("Vx register is not equal to number")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode3XKK(vxIndex, 0xFF)
         };
@@ -230,11 +227,10 @@ TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
 TEST_CASE("Test skip next opcode if Vx register is not equals to number", "[opcode]")
 {
     auto vm = Chip8TestVm{};
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
 
     SECTION("Vx register is not equal to number")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode4XKK(vxIndex, 0xFF),
         };
@@ -249,8 +245,6 @@ TEST_CASE("Test skip next opcode if Vx register is not equals to number", "[opco
 
     SECTION("Vx register is equal to number")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode4XKK(vxIndex, 0x00),
         };
@@ -268,11 +262,11 @@ TEST_CASE("Test skip next opcode if Vx register equals Vy register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
 
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    auto vyIndex = (vxIndex + 1) & 0xF;
+
     SECTION("Vx register is equal Vy register")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode5XY0(vxIndex, vyIndex),
         };
@@ -288,9 +282,6 @@ TEST_CASE("Test skip next opcode if Vx register equals Vy register", "[opcode]")
 
     SECTION("Vx register is not equal to Vy register")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
         auto opcodes = OpcodeList {
             chip8::opcode::encode6XKK(vxIndex, 0x01),
             chip8::opcode::encode5XY0(vxIndex, vyIndex)
@@ -326,7 +317,7 @@ TEST_CASE("Test add number to Vx register", "[opcode]")
     REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
 }
 
-TEST_CASE("Test load Vy register to Vx register")
+TEST_CASE("Test load Vy register to Vx register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
 
@@ -349,112 +340,113 @@ TEST_CASE("Test load Vy register to Vx register")
     REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
 }
 
-TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
+TEST_CASE("Test OR register Vx with register Vy", "[opcode]")
 {
     auto vm = Chip8TestVm{};
 
-    SECTION("OR register Vx with register Vy")
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    auto vyIndex = (vxIndex + 1) & 0xF;
+
+    uint16_t expectedByte1 = 0xAA;
+    uint16_t expectedByte2 = 0x5F;
+
+    auto opcodes = OpcodeList {
+        // Load bytes
+        chip8::opcode::encode6XKK(vxIndex, expectedByte1),
+        chip8::opcode::encode6XKK(vyIndex, expectedByte2),
+        // OR bytes
+        chip8::opcode::encode8XY1(vxIndex, vyIndex),
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 | expectedByte2));
+}
+
+TEST_CASE("Test AND register Vx with register Vy", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    auto vyIndex = (vxIndex + 1) & 0xF;
+
+    uint16_t expectedByte1 = 0xAA;
+    uint16_t expectedByte2 = 0x3F;
+
+    auto opcodes = OpcodeList {
+        // Load bytes
+        chip8::opcode::encode6XKK(vxIndex, expectedByte1),
+        chip8::opcode::encode6XKK(vyIndex, expectedByte2),
+        // OR bytes
+        chip8::opcode::encode8XY2(vxIndex, vyIndex),
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 & expectedByte2));
+}
+
+TEST_CASE("Test XOR register Vx with register Vy", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    auto vyIndex = (vxIndex + 1) & 0xF;
+
+    uint16_t expectedByte1 = 0xAA;
+    uint16_t expectedByte2 = 0x5F;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte1),
+        chip8::opcode::encode6XKK(vyIndex, expectedByte2),
+        chip8::opcode::encode8XY3(vxIndex, vyIndex),
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 ^ expectedByte2));
+
+}
+
+TEST_CASE("Test add register Vx with register Vy", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
+    auto vyIndex = (vxIndex + 1) % 15;
+
+    SECTION("Add without overflow")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
-        uint16_t expectedByte1 = 0xAA;
-        uint16_t expectedByte2 = 0x5F;
-
-        auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte1),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY1(vxIndex, vyIndex),
-        };
-
-        vm.storeCode(opcodes);
-
-        vm.run();
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
-
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 | expectedByte2));
-
-    }
-
-    SECTION("AND register Vx with register Vy")
-    {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
-        uint16_t expectedByte1 = 0xAA;
-        uint16_t expectedByte2 = 0x3F;
-
-        auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte1),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY2(vxIndex, vyIndex),
-        };
-
-        vm.storeCode(opcodes);
-
-        vm.run();
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
-
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 & expectedByte2));
-
-    }
-
-    SECTION("XOR register Vx with register Vy")
-    {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
-        uint16_t expectedByte1 = 0xAA;
-        uint16_t expectedByte2 = 0x5F;
-
-        auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte1),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY3(vxIndex, vyIndex),
-        };
-
-        vm.storeCode(opcodes);
-
-        vm.run();
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
-
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 ^ expectedByte2));
-
-    }
-
-    SECTION("Add register Vx with register Vy")
-    {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
-        auto vyIndex = (vxIndex + 1) % 15;
-
         uint16_t expectedByte1 = 0x22;
         uint16_t expectedByte2 = 0x33;
-        uint16_t expectedByte3 = 0xC2;
-        uint16_t expectedByte4 = 0x53;
 
         auto opcodes = OpcodeList {
-            // Normal add with no overflow
+            // Load 2 bytes
             chip8::opcode::encode6XKK(vxIndex, expectedByte1),
             chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY4(vxIndex, vyIndex),
-            // Add with overflow
-            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
             chip8::opcode::encode8XY4(vxIndex, vyIndex),
         };
 
         vm.storeCode(opcodes);
 
-        // No overflow
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
@@ -463,8 +455,22 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte1 + expectedByte2) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
+    }
 
-        // With overflow
+    SECTION("Add with overflow")
+    {
+        uint16_t expectedByte3 = 0xC2;
+        uint16_t expectedByte4 = 0x53;
+
+        auto opcodes = OpcodeList {
+            // Load 2 bytes
+            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
+            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
+            chip8::opcode::encode8XY4(vxIndex, vyIndex),
+        };
+
+        vm.storeCode(opcodes);
+
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
@@ -474,25 +480,24 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte3 + expectedByte4) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
     }
+}
 
-    SECTION("Subtract register Vx with register Vy")
+TEST_CASE("Test subtract register Vx with register Vy", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
+    auto vyIndex = (vxIndex + 1) % 15;
+
+    SECTION("Subtract without overflow")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
-        auto vyIndex = (vxIndex + 1) % 15;
-
         uint16_t expectedByte1 = 0x33;
         uint16_t expectedByte2 = 0x22;
-        uint16_t expectedByte3 = 0x53;
-        uint16_t expectedByte4 = 0x63;
 
         auto opcodes = OpcodeList {
             // Normal add with no overflow
             chip8::opcode::encode6XKK(vxIndex, expectedByte1),
             chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY5(vxIndex, vyIndex),
-            // Add with overflow
-            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
             chip8::opcode::encode8XY5(vxIndex, vyIndex),
         };
 
@@ -507,8 +512,21 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte1 - expectedByte2) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+    }
 
-        // With overflow
+    SECTION("Subtract with overflow")
+    {
+        uint16_t expectedByte3 = 0x53;
+        uint16_t expectedByte4 = 0x63;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
+            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
+            chip8::opcode::encode8XY5(vxIndex, vyIndex),
+        };
+
+        vm.storeCode(opcodes);
+
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
@@ -518,58 +536,74 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte3 - expectedByte4) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
     }
+}
 
-    SECTION("Shift right register Vy to register Vx")
+TEST_CASE("Shift right register Vy to register Vx", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
+    auto vyIndex = (vxIndex + 1) % 15;
+
+    SECTION("Shift LSB doesn't set VF")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
-        auto vyIndex = (vxIndex + 1) % 15;
-
         uint16_t expectedByte = 0xAA;
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte),
-            chip8::opcode::encode8XY6(vyIndex, vxIndex),
-            chip8::opcode::encode8XY6(vxIndex, vyIndex)
+            chip8::opcode::encode6XKK(vyIndex, expectedByte),
+            chip8::opcode::encode8XY6(vxIndex, vyIndex),
         };
 
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == (expectedByte >> 1));
+        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte >> 1));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x1));
-
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte >> 2));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == ((expectedByte >> 1) & 0x1));
     }
 
-    SECTION("Subtract register Vy with register Vx")
+    SECTION("Shift LSB sets VF")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
-        auto vyIndex = (vxIndex + 1) % 15;
-
-        uint16_t expectedByte1 = 0x22;
-        uint16_t expectedByte2 = 0x33;
-        uint16_t expectedByte3 = 0x63;
-        uint16_t expectedByte4 = 0x53;
+        uint16_t expectedByte = 0x55;
 
         auto opcodes = OpcodeList {
-            // Normal add with no overflow
-            chip8::opcode::encode6XKK(vxIndex, expectedByte1),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte2),
-            chip8::opcode::encode8XY7(vxIndex, vyIndex),
-            // Add with overflow
-            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
-            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
-            chip8::opcode::encode8XY7(vxIndex, vyIndex),
+            chip8::opcode::encode6XKK(vyIndex, expectedByte),
+            chip8::opcode::encode8XY6(vxIndex, vyIndex),
         };
 
         vm.storeCode(opcodes);
 
-        // No overflow
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+
+        vm.run();
+        REQUIRE(static_cast<int>(vm.debugger().getRegisterVx(vxIndex)) == (expectedByte >> 1));
+        REQUIRE(static_cast<int>(vm.debugger().getRegisterVx(0xF)) == (expectedByte & 0x1));
+    }
+}
+
+TEST_CASE("Test subtract register Vy with register Vx", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
+    auto vyIndex = (vxIndex + 1) % 15;
+
+    SECTION("Subtract without overflow")
+    {
+        uint16_t expectedByte1 = 0x22;
+        uint16_t expectedByte2 = 0x33;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vxIndex, expectedByte1),
+            chip8::opcode::encode6XKK(vyIndex, expectedByte2),
+            chip8::opcode::encode8XY7(vxIndex, vyIndex)
+        };
+
+        vm.storeCode(opcodes);
+
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
@@ -578,8 +612,21 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte2 - expectedByte1) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+    }
 
-        // With overflow
+    SECTION("Subtract with overflow")
+    {
+        uint16_t expectedByte3 = 0x63;
+        uint16_t expectedByte4 = 0x53;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vxIndex, expectedByte3),
+            chip8::opcode::encode6XKK(vyIndex, expectedByte4),
+            chip8::opcode::encode8XY7(vxIndex, vyIndex),
+        };
+
+        vm.storeCode(opcodes);
+
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
@@ -589,84 +636,120 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte4 - expectedByte3) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
     }
+}
 
-    SECTION("Shift left register Vy to register Vx")
+TEST_CASE("Test shift left register Vy to register Vx", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
+    auto vyIndex = (vxIndex + 1) % 15;
+
+    SECTION("Shift MSB doesn't set VF")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0xF));
-        auto vyIndex = (vxIndex + 1) % 15;
-
         uint16_t expectedByte = 0xAA;
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte),
-            chip8::opcode::encode8XYE(vyIndex, vxIndex),
-            chip8::opcode::encode8XYE(vxIndex, vyIndex)
+            chip8::opcode::encode6XKK(vyIndex, expectedByte),
+            chip8::opcode::encode8XYE(vxIndex, vyIndex),
         };
 
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == ((expectedByte << 1) & 0xFF));
+        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
         REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x80));
-
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte << 2) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == ((expectedByte << 1) & 0x80));
     }
 
-    SECTION("Skip next if register Vx not equals Vy")
+    SECTION("Shift MSB sets VF")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        auto vyIndex = (vxIndex + 1) & 0xF;
-
         uint16_t expectedByte = 0xAA;
 
         auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vyIndex, expectedByte),
+            chip8::opcode::encode8XYE(vxIndex, vyIndex),
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
+        REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x80));
+    }
+}
+
+TEST_CASE("Skip next if register Vx not equals Vy", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    auto vyIndex = (vxIndex + 1) & 0xF;
+
+
+    SECTION("Register Vx is equal to Vy")
+    {
+        auto opcodes = OpcodeList {
             chip8::opcode::encode9XY0(vxIndex, vyIndex),
+        };
+
+        vm.storeCode(opcodes);
+        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+
+        vm.run();
+        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x2);
+    }
+
+    SECTION("Register Vx is not equal to Vy")
+    {
+        uint16_t expectedByte = 0xAA;
+
+        auto opcodes = OpcodeList {
             chip8::opcode::encode6XKK(vxIndex, expectedByte),
             chip8::opcode::encode9XY0(vyIndex, vxIndex)
         };
 
         vm.storeCode(opcodes);
 
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
-
-        vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x2);
-
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x8);
+        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x6);
     }
+}
 
-    SECTION("Load address to I register")
-    {
-        auto opcodes = OpcodeList {
-            chip8::opcode::encodeANNN(0x123)
-        };
+TEST_CASE("Load address to I register", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
 
-        vm.storeCode(opcodes);
+    uint16_t expectedAddress = 0x123;
 
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterI() == 0x123);
-    }
+    auto opcodes = OpcodeList {
+        chip8::opcode::encodeANNN(expectedAddress)
+    };
 
-    SECTION("Jump to location plus V0 offset")
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == expectedAddress);
+}
+
+TEST_CASE("Jump to location plus V0 offset")
+{
+    auto vm = Chip8TestVm{};
+
+    SECTION("Jump with zero offset")
     {
         uint16_t address1 = chip8::Cpu::PROGRAM_START + 0x4;
-        uint16_t address2 = chip8::Cpu::PROGRAM_START + 0xA;
-        uint16_t offset = 0x2;
 
         auto opcodes = OpcodeList {
             chip8::opcode::encodeBNNN(address1),
-            0x0000,
-            chip8::opcode::encode6XKK(0, offset),
-            chip8::opcode::encodeBNNN(address2)
         };
 
         vm.storeCode(opcodes);
@@ -675,6 +758,19 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
 
         vm.run();
         REQUIRE(vm.debugger().getProgramCounter() == address1);
+    }
+
+    SECTION("Jump with offset")
+    {
+        uint16_t offset = 0x2;
+        uint16_t address2 = chip8::Cpu::PROGRAM_START + 0xA;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(0, offset),
+            chip8::opcode::encodeBNNN(address2)
+        };
+
+        vm.storeCode(opcodes);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(0) == offset);
@@ -682,34 +778,55 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         REQUIRE(vm.debugger().getProgramCounter() == (address2 + offset));
     }
+}
 
-    SECTION("Generate random 8-bit number")
+TEST_CASE("Generate random 8-bit number", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+
+    SECTION("Generate with base-2 modulo mask")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
         uint16_t mask1 = 0x7F;
-        uint16_t mask2 = 0x05;
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encodeCXKK(vxIndex, mask1),
-            chip8::opcode::encodeCXKK(vxIndex, mask2)
+            chip8::opcode::encodeCXKK(vxIndex, mask1)
         };
 
         vm.storeCode(opcodes);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) < (mask1 + 1));
+    }
+
+    SECTION("Generate with non base-2 modulo mask")
+    {
+        uint16_t mask2 = 0x05;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encodeCXKK(vxIndex, mask2)
+        };
+
+        vm.storeCode(opcodes);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterVx(vxIndex) < (mask2 - 4));
     }
+}
 
-    SECTION("Draw sprite erase pixel.")
+TEST_CASE("Draw sprite", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    uint16_t START_DATA_ADDRESS = 0x800;
+
+    auto x = 1u;
+    auto y = 2u;
+
+    SECTION("Draw sprite erases pixel")
     {
-        const uint16_t START_DATA_ADDRESS = 0x800;
-
         auto sprite = chip8::Sprite{0x01};
-        auto x = 1u;
-        auto y = 2u;
 
         vm.storeData(START_DATA_ADDRESS, sprite);
 
@@ -731,16 +848,12 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto drawContext = vm.gpu().drawContext;
         REQUIRE(drawContext.x == x);
         REQUIRE(drawContext.y == y);
-        REQUIRE(drawContext.sprite[0] == 0x1);
+        REQUIRE_THAT(drawContext.sprite, Catch::Contains(sprite));
     }
 
     SECTION("Draw sprite does not erase pixel.")
     {
-        const uint16_t START_DATA_ADDRESS = 0x800;
-
         auto sprite = chip8::Sprite{0x00};
-        auto x = 1u;
-        auto y = 2u;
 
         vm.storeData(START_DATA_ADDRESS, sprite);
 
@@ -762,17 +875,53 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         auto drawContext = vm.gpu().drawContext;
         REQUIRE(drawContext.x == x);
         REQUIRE(drawContext.y == y);
-        REQUIRE(drawContext.sprite[0] == 0x0);
+        REQUIRE_THAT(drawContext.sprite, Catch::Contains(sprite));
     }
 
-    SECTION("Skip next instruction if key pressed")
+    SECTION("Draw sprite multiple length")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+        size_t  spriteLength = GENERATE(Catch::Generators::range(0x0, 0x10));
+        uint8_t spriteByte = 0xA5;
+
+        auto sprite = chip8::Sprite(spriteLength, spriteByte);
+
+        vm.storeData(START_DATA_ADDRESS, sprite);
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, 0x9),
-            chip8::opcode::encodeEX9E(vxIndex),
-            chip8::opcode::encode6XKK(vxIndex, 0x3),
+            chip8::opcode::encodeANNN(START_DATA_ADDRESS),
+            chip8::opcode::encodeDXYN(x, y, sprite.size())
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
+
+        vm.gpu().spriteErased = true;
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+
+        auto drawContext = vm.gpu().drawContext;
+        REQUIRE(drawContext.x == x);
+        REQUIRE(drawContext.y == y);
+
+        REQUIRE_THAT(drawContext.sprite, Catch::Contains(sprite));
+    }
+}
+
+TEST_CASE("Skip next instruction if key pressed", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+
+    SECTION("Key is not pressed")
+    {
+        uint8_t key = 0x9;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vxIndex, key),
             chip8::opcode::encodeEX9E(vxIndex)
         };
 
@@ -781,69 +930,131 @@ TEST_CASE("Test CPU opcodes", "[cpu][opcode]")
         vm.run();
         vm.run();
         REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
-
-        vm.keyboard().pressKey(0x3);
-        vm.run();
-        vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 10));
-        vm.keyboard().releaseKey(0x3);
     }
 
-    SECTION("Load DT register to Vx register")
+    SECTION("Key is pressed")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        uint16_t expectedByte = 0x10;
+        uint8_t key = 0x3;
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte),
-            chip8::opcode::encodeFX07(vxIndex)
+            chip8::opcode::encode6XKK(vxIndex, key),
+            chip8::opcode::encodeEX9E(vxIndex)
+        };
+
+        vm.storeCode(opcodes);
+
+        vm.keyboard().pressKey(key);
+
+        vm.run();
+        vm.run();
+        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
+
+        vm.keyboard().releaseKey(key);
+    }
+}
+
+TEST_CASE("Skip next instruction if key is not pressed", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = 0;
+
+    SECTION("Key is not pressed")
+    {
+        int key = 0x9;
+
+        auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(vxIndex, key),
+            chip8::opcode::encodeEXA1(vxIndex)
         };
 
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
-
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
     }
 
-    SECTION("Load Vx register to DT register")
+    SECTION("Key is pressed")
     {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        uint16_t expectedByte = 0x10;
+        int key = 0x3;
 
         auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte),
-            chip8::opcode::encodeFX15(vxIndex)
+            chip8::opcode::encode6XKK(vxIndex, key),
+            chip8::opcode::encodeEXA1(vxIndex)
         };
 
         vm.storeCode(opcodes);
 
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+        vm.keyboard().pressKey(key);
 
         vm.run();
-        REQUIRE(vm.debugger().getDelayTimer() == expectedByte);
+        vm.run();
+        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
+
+        vm.keyboard().releaseKey(key);
     }
+}
 
+TEST_CASE("Load DT register to Vx register", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
 
-    SECTION("Load Vx to ST register")
-    {
-        auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-        uint16_t expectedByte = 0x10;
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t expectedByte = 0x10;
 
-        auto opcodes = OpcodeList {
-            chip8::opcode::encode6XKK(vxIndex, expectedByte),
-            chip8::opcode::encodeFX18(vxIndex)
-        };
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte),
+        chip8::opcode::encodeFX07(vxIndex)
+    };
 
-        vm.storeCode(opcodes);
+    vm.storeCode(opcodes);
 
-        vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
 
-        vm.run();
-        REQUIRE(vm.debugger().getSoundTimer() == expectedByte);
-    }
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+}
+
+TEST_CASE("Load Vx register to DT register", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t expectedByte = 0x10;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte),
+        chip8::opcode::encodeFX15(vxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+
+    vm.run();
+    REQUIRE(vm.debugger().getDelayTimer() == expectedByte);
+}
+
+TEST_CASE("Load Vx to ST register")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t expectedByte = 0x10;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte),
+        chip8::opcode::encodeFX18(vxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+
+    vm.run();
+    REQUIRE(vm.debugger().getSoundTimer() == expectedByte);
 }

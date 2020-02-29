@@ -23,7 +23,7 @@ target_include_directories(chip8
         ./src
 )
 
-add_subdirectory(test)
+add_subdirectory(tests)
 
 # Add custom target to copy compile_commands.json at project root
 add_custom_target(chip8_db

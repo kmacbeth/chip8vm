@@ -137,6 +137,7 @@ class CpuImpl : public Cpu
         void opcodeRandomNumber();
         void opcodeDraw();
         void opcodeSkipNextIfKeyEqualsRegister();
+        void opcodeSkipNextIfKeyNotEqualsRegister();
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
