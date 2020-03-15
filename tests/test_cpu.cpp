@@ -1017,6 +1017,19 @@ TEST_CASE("Load DT register to Vx register", "[opcode]")
     REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
 }
 
+TEST_CASE("Wait and load pressed key in Vx register")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t expectedByte = 0x10;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte),
+        chip8::opcode::encodeFX0A(vxIndex)
+    };
+}
+
 TEST_CASE("Load Vx register to DT register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
