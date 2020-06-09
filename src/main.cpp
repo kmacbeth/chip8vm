@@ -28,12 +28,12 @@
 
 int main(int argc, char * argv[])
 {
-    chip8::Memory memory = chip8::Memory{chip8::SYSTEM_MEMORY_SIZE};
+    std::shared_ptr<chip8::Memory> memory = std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE);
     chip8::Memory framebuffer = chip8::Memory{chip8::FRAMEBUFFER_SIZE};
 
     std::shared_ptr<chip8::Gpu> gpu = std::make_shared<chip8::GpuImpl>(framebuffer);
     std::shared_ptr<chip8::Keyboard> keyboard = std::make_shared<chip8::KeyboardImpl>();
-    std::shared_ptr<chip8::Cpu> cpu = std::make_shared<chip8::CpuImpl>(memory, gpu, keyboard);
+    std::shared_ptr<chip8::Cpu> cpu = std::make_shared<chip8::CpuImpl>(memory, keyboard, gpu);
 
     return 0;
 }

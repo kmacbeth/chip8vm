@@ -83,7 +83,9 @@ class Cpu
 class CpuImpl : public Cpu
 {
     public:
-        CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu, std::shared_ptr<Keyboard> const& keyboard);
+        CpuImpl(std::shared_ptr<Memory> memory,
+                std::shared_ptr<Keyboard> keyboard,
+                std::shared_ptr<Gpu> gpu);
         ~CpuImpl();
 
         virtual void reset();
@@ -99,7 +101,8 @@ class CpuImpl : public Cpu
         class OpcodeDecoder
         {
             public:
-                OpcodeDecoder(CpuImpl & cpu);
+                OpcodeDecoder() = delete;
+                OpcodeDecoder(CpuImpl * cpu);
 
                 void decode(opcode::Opcode opcode);
 
@@ -110,7 +113,7 @@ class CpuImpl : public Cpu
                 static const std::unordered_map<opcode::Opcode, OpcodeFunc> opcodeTable_;
 
                 /// @brief Reference to cpu instance.
-                CpuImpl & cpu_;
+                CpuImpl * cpu_;
         };
 
         void opcodeClearDisplay();
@@ -141,16 +144,17 @@ class CpuImpl : public Cpu
         void opcodeLoadDelayTimerFromRegister();
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
+        void opcodeAddIRegister();
 
         /// @brief Main memory instance.
-        Memory & memory_;
-        /// @brief GPU display.
-        std::shared_ptr<Gpu> gpu_;
+        std::shared_ptr<Memory> memory_;
         /// @brief Keyboard
         std::shared_ptr<Keyboard> keyboard_;
+        /// @brief GPU display.
+        std::shared_ptr<Gpu> gpu_;
+
         /// @brief Register context.
         RegContext regs_;
-
         /// @brief Opcode decoder instance.
         OpcodeDecoder opcodeDecoder_;
         /// @brief Current opcode.

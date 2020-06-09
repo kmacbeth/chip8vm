@@ -38,67 +38,45 @@ class Chip8TestVm
 {
     public:
         Chip8TestVm()
-            : memory_{chip8::SYSTEM_MEMORY_SIZE}
-            , framebuffer_{chip8::FRAMEBUFFER_SIZE}
-            , fakeGpu_{std::make_shared<chip8::FakeGpu>()}
-            , fakeKeyboard_{std::make_shared<chip8::FakeKeyboard>()}
-            , cpu_{std::make_shared<chip8::CpuImpl>(memory_, fakeGpu_, fakeKeyboard_)}
-            , debugger_{cpu_, memory_}
+            : memory_{ std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE) }
+            , gpu_{ std::make_shared<chip8::FakeGpu>() }
+            , keyboard_{ std::make_shared<chip8::FakeKeyboard>() }
+            , cpu_{ std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_) }
+            , debugger_{ std::make_shared<chip8::Debugger>(cpu_, memory_) }
         {
         }
 
-        void storeCode(OpcodeList const& opcodes)
+        void storeCode(OpcodeList const& program)
         {
-            memory_.storeBuffer(chip8::Cpu::PROGRAM_START, opcodes, chip8::Memory::Endian::LITTLE);
+            memory_->storeBuffer(chip8::Cpu::PROGRAM_START, program, chip8::Memory::Endian::LITTLE);
         }
 
         void storeData(uint16_t startAddress, Data const& data)
         {
-            memory_.storeBuffer(startAddress, data);
-        }
-
-        void storeFramebuffer(chip8::Memory::Bytes const& bytes)
-        {
-            framebuffer_.storeBuffer(0x0000, bytes);
-        }
-
-        void loadFramebuffer(chip8::Memory::Bytes & bytes)
-        {
-            loadFramebufferData(0x0000, bytes);
-        }
-
-        void loadFramebufferData(uint16_t startAddress, chip8::Memory::Bytes & bytes)
-        {
-            for (size_t offset = 0; offset < bytes.size(); ++offset)
-            {
-                uint16_t address = startAddress + offset;
-
-                bytes[offset] = framebuffer_.load<uint8_t>(address);
-            }
+            memory_->storeBuffer(startAddress, data);
         }
 
         void run()
         {
-            debugger_.tick();
+            debugger_->tick();
         }
 
         void setDebugTrace(chip8::Debugger::Traces traces)
         {
-            debugger_.setTraces(traces);
+            debugger_->setTraces(traces);
         }
 
-        chip8::Debugger const& debugger() { return debugger_; }
+        chip8::Debugger const& debugger() { return *debugger_; }
 
-        chip8::FakeGpu & gpu() { return *fakeGpu_.get(); }
-        chip8::FakeKeyboard & keyboard() { return *fakeKeyboard_.get(); }
+        chip8::FakeGpu & gpu() { return *gpu_; }
+        chip8::FakeKeyboard & keyboard() { return *keyboard_; }
 
     private:
-        chip8::Memory memory_;
-        chip8::Memory framebuffer_;
-        std::shared_ptr<chip8::FakeGpu> fakeGpu_;
-        std::shared_ptr<chip8::FakeKeyboard> fakeKeyboard_;
+        std::shared_ptr<chip8::Memory> memory_;
+        std::shared_ptr<chip8::FakeGpu> gpu_;
+        std::shared_ptr<chip8::FakeKeyboard> keyboard_;
         std::shared_ptr<chip8::Cpu> cpu_;
-        chip8::Debugger debugger_;
+        std::shared_ptr<chip8::Debugger> debugger_;
 };
 
 
@@ -1051,7 +1029,7 @@ TEST_CASE("Load Vx register to DT register", "[opcode]")
     REQUIRE(vm.debugger().getDelayTimer() == expectedByte);
 }
 
-TEST_CASE("Load Vx to ST register")
+TEST_CASE("Load Vx to ST register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
 
@@ -1070,4 +1048,29 @@ TEST_CASE("Load Vx to ST register")
 
     vm.run();
     REQUIRE(vm.debugger().getSoundTimer() == expectedByte);
+}
+
+TEST_CASE("Add Vx to I register", "[opcode]")
+{
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x010));
+    uint16_t expectedByte = 0x55;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, expectedByte),
+        chip8::opcode::encodeFX1E(vxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == expectedByte);
+}
+
+TEST_CASE("Load I with location of hexadecimal sprite", "[opcode]")
+{
 }

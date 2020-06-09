@@ -43,7 +43,7 @@ class Debugger : public Cpu
             ALL       = 0x7
         };
 
-        Debugger(std::shared_ptr<Cpu>const& cpu, Memory & memory);
+        Debugger(std::shared_ptr<Cpu> cpu, std::shared_ptr<Memory> memory);
         ~Debugger();
 
         void setTraces(Traces traces) { traces_ = traces; }
@@ -67,7 +67,7 @@ class Debugger : public Cpu
         void traceStack();
 
         std::shared_ptr<Cpu> cpu_;
-        Memory & memory_;
+        std::shared_ptr<Memory> memory_;
         Traces traces_;
 
         Cpu::RegContext regContext_;

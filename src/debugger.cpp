@@ -30,13 +30,13 @@ namespace chip8 {
 ///
 /// @param cpu    Reference to cpu.
 /// @param memory Reference to system memory.
-Debugger::Debugger(std::shared_ptr<Cpu> const& cpu, Memory & memory)
+Debugger::Debugger(std::shared_ptr<Cpu> cpu, std::shared_ptr<Memory> memory)
     : Cpu{}
-    , cpu_{cpu}
-    , memory_{memory}
-    , traces_{Traces::NONE}
+    , cpu_{ cpu }
+    , memory_{ memory }
+    , traces_{ Traces::NONE }
     , regContext_{}
-    , opcode_(0)
+    , opcode_{ 0 }
 {
 }
 

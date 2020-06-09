@@ -62,13 +62,14 @@ const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> Cpu
     { opcode::OPCODE_FX07, &CpuImpl::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &CpuImpl::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &CpuImpl::opcodeLoadSoundTimerFromRegister },
+    { opcode::OPCODE_FX1E, &CpuImpl::opcodeAddIRegister }
 };
 
 /// @brief Construct an opcode decoder.
 ///
 /// @param cpu Reference to the CPU instance.
-CpuImpl::OpcodeDecoder::OpcodeDecoder(CpuImpl & cpu)
-    : cpu_{cpu}
+CpuImpl::OpcodeDecoder::OpcodeDecoder(CpuImpl * cpu)
+    : cpu_{ cpu }
 {
 }
 
@@ -92,7 +93,7 @@ void CpuImpl::OpcodeDecoder::decode(opcode::Opcode opcode)
 
     if (opcodeIterator != opcodeTable_.end())
     {
-        (cpu_.*(opcodeIterator->second))();
+        (cpu_->*(opcodeIterator->second))();
     }
 }
 
@@ -101,12 +102,14 @@ void CpuImpl::OpcodeDecoder::decode(opcode::Opcode opcode)
 ///
 /// @param memory Reference to memory.
 /// @param gpu    Reference to GPU displau.
-CpuImpl::CpuImpl(Memory & memory, std::shared_ptr<Gpu> const& gpu, std::shared_ptr<Keyboard> const& keyboard)
-    : memory_{memory}
-    , gpu_{gpu}
-    , keyboard_{keyboard}
+CpuImpl::CpuImpl(std::shared_ptr<Memory> memory,
+                 std::shared_ptr<Keyboard> keyboard,
+                 std::shared_ptr<Gpu> gpu)
+    : memory_{ std::move(memory) }
+    , keyboard_{ std::move(keyboard) }
+    , gpu_{ std::move(gpu) }
     , regs_{}
-    , opcodeDecoder_{*this}
+    , opcodeDecoder_{this}
     , opcode_{0x0000}
     , randomizer_{}
     , bitGenerator_{}
@@ -130,7 +133,7 @@ void CpuImpl::reset()
 /// @brief Process a cpu tick.
 void CpuImpl::tick()
 {
-    opcode_ = memory_.load<opcode::Opcode>(regs_.pc);
+    opcode_ = memory_->load<opcode::Opcode>(regs_.pc);
     regs_.pc += PC_INCR;
 
     if (regs_.dt > 0)
@@ -410,7 +413,7 @@ void CpuImpl::opcodeDraw()
 
     for (size_t offset = 0; offset < op.n; ++offset)
     {
-        sprite.push_back(memory_.load<uint8_t>(regs_.i + offset));
+        sprite.push_back(memory_->load<uint8_t>(regs_.i + offset));
     }
 
     if (gpu_->drawSprite(op.x, op.y, sprite))
@@ -470,11 +473,19 @@ void CpuImpl::opcodeLoadRegisterFromDelayTimer()
 /// Opcode Fx18 (LD ST,Vx)
 void CpuImpl::opcodeLoadSoundTimerFromRegister()
 {
-    uint8_t regSrc = (opcode_ >> 8) & 0xF;
-
     auto op = opcode::decodeFX18(opcode_);
 
     regs_.st = regs_.vx[op.x];
+}
+
+/// @brief Add Vx to I register.
+///
+/// Opcode 0xFx1E (ADD I, Vx)
+void CpuImpl::opcodeAddIRegister()
+{
+    auto op = opcode::decodeFX1E(opcode_);
+
+    regs_.i += regs_.vx[op.x];
 }
 
 }  // chip8
