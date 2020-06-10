@@ -56,6 +56,11 @@ class Chip8TestVm
             memory_->storeBuffer(startAddress, data);
         }
 
+        uint16_t loadData(uint16_t address)
+        {
+            return memory_->load<uint8_t>(address);
+        }
+
         void run()
         {
             debugger_->tick();
@@ -1054,7 +1059,7 @@ TEST_CASE("Add Vx to I register", "[opcode]")
 {
     auto vm = Chip8TestVm{};
 
-    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x010));
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
     uint16_t expectedByte = 0x55;
 
     auto opcodes = OpcodeList {
@@ -1073,4 +1078,139 @@ TEST_CASE("Add Vx to I register", "[opcode]")
 
 TEST_CASE("Load I with location of hexadecimal sprite", "[opcode]")
 {
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t expectedAddress = vxIndex << 3;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encodeFX29(vxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == expectedAddress);
 }
+
+TEST_CASE("Store BCD representation of Vx in I, I+1, I+2 address", "[opcode]")
+{
+    const uint16_t BCD_ADDRESS = 0x800;
+    auto vm = Chip8TestVm{};
+
+    auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
+    uint16_t inputNumber = 255;
+    uint16_t expectedBcd[] = { 2, 5, 5 };
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, inputNumber),
+        chip8::opcode::encodeANNN(BCD_ADDRESS),
+        chip8::opcode::encodeFX33(vxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == inputNumber);
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == BCD_ADDRESS);
+
+    vm.run();
+    REQUIRE(vm.loadData(BCD_ADDRESS) == expectedBcd[0]);
+    REQUIRE(vm.loadData(BCD_ADDRESS + 1) == expectedBcd[1]);
+    REQUIRE(vm.loadData(BCD_ADDRESS + 2) == expectedBcd[2]);
+}
+
+TEST_CASE("Store Vx register at location I", "[opcode]")
+{
+    const uint16_t SAVE_ADDRESS = 0x810;
+    auto vm = Chip8TestVm{};
+
+    uint8_t expectedByte = 0xFF;
+    uint16_t lastVxIndex = 0xA;
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(0x0, expectedByte),
+        chip8::opcode::encode6XKK(0x1, expectedByte),
+        chip8::opcode::encode6XKK(0x2, expectedByte),
+        chip8::opcode::encode6XKK(0x3, expectedByte),
+        chip8::opcode::encode6XKK(0x4, expectedByte),
+        chip8::opcode::encode6XKK(0x5, expectedByte),
+        chip8::opcode::encode6XKK(0x6, expectedByte),
+        chip8::opcode::encode6XKK(0x7, expectedByte),
+        chip8::opcode::encode6XKK(0x8, expectedByte),
+        chip8::opcode::encode6XKK(0x9, expectedByte),
+        chip8::opcode::encode6XKK(0xA, expectedByte),
+        chip8::opcode::encode6XKK(0xB, expectedByte),
+        chip8::opcode::encode6XKK(0xC, expectedByte),
+        chip8::opcode::encode6XKK(0xD, expectedByte),
+        chip8::opcode::encode6XKK(0xE, expectedByte),
+        chip8::opcode::encode6XKK(0xF, expectedByte),
+        chip8::opcode::encodeANNN(SAVE_ADDRESS),
+        chip8::opcode::encodeFX55(lastVxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    // Load all Vx registers with value
+    for (size_t index = 0; index < 16; ++index)
+    {
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(index) == expectedByte);
+    }
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == SAVE_ADDRESS);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == (SAVE_ADDRESS + lastVxIndex + 1));
+
+    for (uint16_t index = 0; index < chip8::Cpu::REG_COUNT; ++index)
+    {
+        auto data = vm.loadData(SAVE_ADDRESS + index);
+
+        if (index > lastVxIndex)
+        {
+            REQUIRE(data == 0x00);
+        }
+        else
+        {
+            REQUIRE(data == expectedByte);
+        }
+    }
+}
+
+TEST_CASE("Load Vx register from location I", "[opcode]")
+{
+    const uint16_t SAVE_ADDRESS = 0x810;
+    auto vm = Chip8TestVm{};
+
+    Data expectedData = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xAA };
+    auto lastVxIndex = expectedData.size() - 1;
+
+    vm.storeData(SAVE_ADDRESS, expectedData);
+
+    auto opcodes = OpcodeList {
+        chip8::opcode::encodeANNN(SAVE_ADDRESS),
+        chip8::opcode::encodeFX65(lastVxIndex)
+    };
+
+    vm.storeCode(opcodes);
+
+    vm.run();
+    REQUIRE(vm.debugger().getRegisterI() == SAVE_ADDRESS);
+
+    vm.run();
+    for (uint16_t index = 0; index < chip8::Cpu::REG_COUNT; ++index)
+    {
+        if (index > lastVxIndex)
+        {
+            REQUIRE(vm.debugger().getRegisterVx(index) == 0x00);
+        }
+        else
+        {
+            REQUIRE(vm.debugger().getRegisterVx(index) == expectedData[index]);
+        }
+    }
+}
+

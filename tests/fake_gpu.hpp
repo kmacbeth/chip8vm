@@ -42,7 +42,7 @@ class FakeGpu : public Gpu
         FakeGpu() = default;
         ~FakeGpu() {}
 
-        void clearFramebuffer() override
+        void clearFrame() override
         {
             ++clearCount;
         }
@@ -53,6 +53,10 @@ class FakeGpu : public Gpu
             drawContext.y = y;
             drawContext.sprite = sprite;
             return spriteErased;
+        }
+
+        void draw()
+        {
         }
 
         uint16_t clearCount = 0;

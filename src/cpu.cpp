@@ -62,7 +62,11 @@ const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> Cpu
     { opcode::OPCODE_FX07, &CpuImpl::opcodeLoadRegisterFromDelayTimer },
     { opcode::OPCODE_FX15, &CpuImpl::opcodeLoadDelayTimerFromRegister },
     { opcode::OPCODE_FX18, &CpuImpl::opcodeLoadSoundTimerFromRegister },
-    { opcode::OPCODE_FX1E, &CpuImpl::opcodeAddIRegister }
+    { opcode::OPCODE_FX1E, &CpuImpl::opcodeAddIRegister },
+    { opcode::OPCODE_FX29, &CpuImpl::opcodeLoadIRegisterWithAddress },
+    { opcode::OPCODE_FX33, &CpuImpl::opcodeStoreBinaryCodedDecimal },
+    { opcode::OPCODE_FX55, &CpuImpl::opcodeStoreRegistersWithAddress },
+    { opcode::OPCODE_FX65, &CpuImpl::opcodeLoadRegistersWithAddress }
 };
 
 /// @brief Construct an opcode decoder.
@@ -166,7 +170,7 @@ void CpuImpl::resetRegisters()
 /// Opcode 00E0 (CLS)
 void CpuImpl::opcodeClearDisplay()
 {
-    gpu_->clearFramebuffer();
+    gpu_->clearFrame();
 }
 
 /// @brief Return from subroutine.
@@ -480,12 +484,68 @@ void CpuImpl::opcodeLoadSoundTimerFromRegister()
 
 /// @brief Add Vx to I register.
 ///
-/// Opcode 0xFx1E (ADD I, Vx)
+/// Opcode Fx1E (ADD I, Vx)
 void CpuImpl::opcodeAddIRegister()
 {
     auto op = opcode::decodeFX1E(opcode_);
 
     regs_.i += regs_.vx[op.x];
 }
+
+/// @brief Load I register with address.
+///
+/// Opcode Fx29 (LD F, Vx)
+void CpuImpl::opcodeLoadIRegisterWithAddress()
+{
+    auto op = opcode::decodeFX29(opcode_);
+
+    regs_.i = (op.x << 3);
+}
+
+/// @brief Store binary coded decimal from Vx.
+///
+/// Opcode Fx33 (LD B, Vx)
+void CpuImpl::opcodeStoreBinaryCodedDecimal()
+{
+    const uint16_t MAX_ADDRESS_OFFSET = 3;
+
+    auto op = opcode::decodeFX33(opcode_);
+
+    auto address = regs_.i;
+    auto data = regs_.vx[op.x];
+
+    for (size_t index = 0; index < MAX_ADDRESS_OFFSET; ++index)
+    {
+        memory_->store(address + (MAX_ADDRESS_OFFSET - index - 1), (data % 10));
+        data /= 10;
+    }
+}
+
+/// @brief Store registers V0 to Vx starting at address in I.
+///
+/// Opcode Fx55 (LD [I], Vx)
+void CpuImpl::opcodeStoreRegistersWithAddress()
+{
+    auto op = opcode::decodeFX55(opcode_);
+
+    for (uint16_t index = 0; index <= op.x; ++index)
+    {
+        memory_->store(regs_.i++, regs_.vx[index]);
+    }
+}
+
+/// @brief Load registers V0 to Vx from starting address in I.
+///
+/// Opcode Fx65 (LD Vx, [I])
+void CpuImpl::opcodeLoadRegistersWithAddress()
+{
+    auto op = opcode::decodeFX65(opcode_);
+
+    for (uint16_t index = 0; index <= op.x; ++index)
+    {
+        regs_.vx[index] = memory_->load<uint8_t>(regs_.i++);
+    }
+}
+
 
 }  // chip8

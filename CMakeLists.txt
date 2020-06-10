@@ -4,6 +4,8 @@ project(chip8 LANGUAGES CXX)
 # For clang tooling
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_package(SDL2 REQUIRED)
+
 # Create executable target
 add_executable(chip8
     src/main.cpp
@@ -18,9 +20,17 @@ add_executable(chip8
     src/debugger.cpp
 )
 
+message("${SDL2_INCLUDE_DIRS} ${SDL2_LIBRARIES}")
+
 target_include_directories(chip8
     PRIVATE
         ./src
+        ${SDL2_INCLUDE_DIRS}
+)
+
+target_link_libraries(chip8
+    PUBLIC
+        ${SDL2_LIBRARIES}
 )
 
 add_subdirectory(tests)

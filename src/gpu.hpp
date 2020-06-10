@@ -24,6 +24,8 @@
 #ifndef CHIP8_GPU_HPP
 #define CHIP8_GPU_HPP
 
+#include <SDL2/SDL.h>
+
 #include <core.hpp>
 #include <memory.hpp>
 
@@ -40,24 +42,30 @@ class Gpu
 
         virtual ~Gpu() {}
 
-        virtual void clearFramebuffer() = 0;
+        virtual void clearFrame() = 0;
         virtual bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) = 0;
+        virtual void draw() = 0;
 };
 
 /// @brief Represent the CHIP-8 GPU implementation.
 class GpuImpl : public Gpu
 {
     public:
-        GpuImpl(Memory & frameBuffer);
+        GpuImpl(SDL_Window * window);
         ~GpuImpl();
 
-        void clearFramebuffer() override;
+        void clearFrame();
         bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) override;
+        void draw() override;
 
     private:
         static uint16_t computeLinearAddress(uint8_t x, uint8_t y);
 
-        Memory & framebuffer_;
+        SDL_Window  *  window_;
+        SDL_Renderer * renderer_;
+        SDL_Rect       viewport_;
+        SDL_Texture *  frame_;
+        uint32_t *     pixels_;
 };
 
 }  // chip8

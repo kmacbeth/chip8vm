@@ -22,6 +22,11 @@
  * SOFTWARE.
  */
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <SDL2/SDL.h>
+
 #include <memory.hpp>
 #include "gpu.hpp"
 
@@ -30,24 +35,38 @@ namespace chip8 {
 
 /// @brief Construct a GPU instance with framebuffer.
 ///
-/// @param frameBuffer Framebuffer memory.
-GpuImpl::GpuImpl(Memory & framebuffer)
-    : framebuffer_(framebuffer)
+/// @param window  SDL window.
+/// @param frame   SDL surface for screen.
+GpuImpl::GpuImpl(SDL_Window * window)
+    : window_{ window }
+    , renderer_{ nullptr }
+    , viewport_{ }
+    , frame_{ nullptr }
+    , pixels_{ nullptr }
 {
+    renderer_ = SDL_CreateRenderer(window_, -1, 0);
+
+    SDL_RenderGetViewport(renderer_, &viewport_);
+
+    // Check https://github.com/JamesGriffin/CHIP-8-Emulator/blob/master/src/main.cpp
+    frame_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, viewport_.w, viewport_.h);
+    pixels_ = static_cast<uint32_t *>(std::malloc(sizeof(uint32_t) * viewport_.w * viewport_.h));
+
+    std::memset(pixels_, 0x00, sizeof(uint32_t) * viewport_.w * viewport_.h);
 }
 
 /// @brief Destroy the GPU instance.
 GpuImpl::~GpuImpl()
 {
+    SDL_DestroyWindow(window_);
+    SDL_DestroyRenderer(renderer_);
+    SDL_DestroyTexture(frame_);
+    std::free(pixels_);
 }
 
-/// @brief Clear framebuffer.
-void GpuImpl::clearFramebuffer()
+void GpuImpl::clearFrame()
 {
-    for (size_t address = 0; address < framebuffer_.getSize(); ++address)
-    {
-        framebuffer_.store(address, 0x00);
-    }
+    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
 }
 
 /// @brief Draw a sprite.
@@ -59,6 +78,7 @@ bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
 {
     bool erased = false;
 
+#if 0
     for (size_t spriteIndex = 0; spriteIndex < sprite.size(); ++spriteIndex)
     {
         uint8_t yPixel = y + spriteIndex;
@@ -70,9 +90,7 @@ bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
             uint16_t address = computeLinearAddress(xPixel, yPixel);
             uint8_t pixel = framebuffer_.load<uint8_t>(address) ^ spriteValue;
 
-#if 0
             std::printf("Address 0x%04X    Sprite Value %02X    Pixel %02X    (x,y) = (%u,%u)\n", address, spriteValue, pixel, xPixel, yPixel);
-#endif
 
             if (pixel == 0)
             {
@@ -82,8 +100,27 @@ bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
             framebuffer_.store(address, pixel);
         }
     }
+#endif
 
     return erased;
+}
+
+/// @brief Draw framebuffer to window.
+void GpuImpl::draw()
+{
+
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 0] = 0xFFFFFF00;
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 1] = 0xFFFFFF00;
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 2] = 0xFFFFFF00;
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 3] = 0xFFFFFF00;
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 4] = 0xFFFFFF00;
+    pixels_[2 * viewport_.w * sizeof(uint32_t) + 5] = 0xFFFFFF00;
+
+    SDL_UpdateTexture(frame_, NULL, pixels_, viewport_.w * sizeof(uint32_t));
+
+    SDL_RenderClear(renderer_);
+    SDL_RenderCopy(renderer_, frame_, NULL, NULL);
+    SDL_RenderPresent(renderer_);
 }
 
 /// @brief Compute address from (x,y) coords.

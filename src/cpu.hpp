@@ -145,6 +145,10 @@ class CpuImpl : public Cpu
         void opcodeLoadRegisterFromDelayTimer();
         void opcodeLoadSoundTimerFromRegister();
         void opcodeAddIRegister();
+        void opcodeLoadIRegisterWithAddress();
+        void opcodeStoreBinaryCodedDecimal();
+        void opcodeStoreRegistersWithAddress();
+        void opcodeLoadRegistersWithAddress();
 
         /// @brief Main memory instance.
         std::shared_ptr<Memory> memory_;
