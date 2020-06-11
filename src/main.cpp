@@ -42,74 +42,66 @@ class VirtualMachine
 {
     public:
         VirtualMachine()
+            : window_{ nullptr }
         {
         }
 
         ~VirtualMachine()
         {
+            if (window_ != nullptr)
+            {
+                SDL_DestroyWindow(window_);
+            }
             SDL_Quit();
         }
 
+        /// @brief Initialize the virtual machine.
+        ///
+        /// @return True when initialized, otherwise false.
         bool initialize()
         {
-            if (SDL_Init(SDL_INIT_VIDEO) < 0)
+            if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
             {
                 return false;
             }
 
-            SDL_Window * window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
+            const int WIN_WIDTH = 1024;
+            const int WIN_HEIGHT = 512;
 
-            if (window == NULL)
+            window_ = SDL_CreateWindow("CHIP-8",
+                                       SDL_WINDOWPOS_UNDEFINED,
+                                       SDL_WINDOWPOS_UNDEFINED,
+                                       WIN_WIDTH,
+                                       WIN_HEIGHT,
+                                       SDL_WINDOW_SHOWN);
+
+            if (window_ == nullptr)
             {
                 return false;
             }
 
-            gpu_ = std::make_shared<chip8::GpuImpl>(window);
+            SDL_Renderer * renderer = SDL_CreateRenderer(window_, -1, 0);
+
+            gpu_ = std::make_shared<chip8::GpuImpl>(renderer);
             keyboard_ = std::make_shared<chip8::KeyboardImpl>();
             memory_ = std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE);
             cpu_ = std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_);
 
-            gpu_->clearFrame();
-
             return true;
         }
 
-        void loop()
+        /// @brief Start the virtual machine.
+        void start()
         {
-            bool quit = false;
-            while (!quit)
+            gpu_->clearFrame();
+
+            while (!keyboard_->isQuitRequested())
             {
                 uint32_t startTick = SDL_GetTicks();
-                SDL_Event event;
 
-                while (SDL_PollEvent(&event) != 0)
-                {
-                    if (event.type == SDL_QUIT)
-                    {
-                        quit = true;
-                    }
-                    else if (event.type == SDL_KEYDOWN)
-                    {
-                        switch (event.key.keysym.sym)
-                        {
-                            case SDLK_UP:
-                                std::puts("UP");
-                                break;
-                            case SDLK_DOWN:
-                                std::puts("DOWN");
-                                break;
-                            case SDLK_RIGHT:
-                                std::puts("RIGHT");
-                                break;
-                            case SDLK_LEFT:
-                                std::puts("LEFT");
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
+                // TODO: add cpu
 
+                keyboard_->update();
                 gpu_->draw();
 
                 uint32_t currentDuration = SDL_GetTicks() - startTick;
@@ -122,6 +114,8 @@ class VirtualMachine
         }
 
     private:
+        SDL_Window * window_;
+
         std::shared_ptr<chip8::Gpu> gpu_;
         std::shared_ptr<chip8::Keyboard> keyboard_;
         std::shared_ptr<chip8::Memory> memory_;
@@ -139,7 +133,7 @@ int main(int argc, char * argv[])
         return 1;
     }
 
-    chip8vm.loop();
+    chip8vm.start();
 
     return 0;
 }

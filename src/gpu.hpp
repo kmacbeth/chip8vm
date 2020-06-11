@@ -24,6 +24,7 @@
 #ifndef CHIP8_GPU_HPP
 #define CHIP8_GPU_HPP
 
+#include <array>
 #include <SDL2/SDL.h>
 
 #include <core.hpp>
@@ -33,13 +34,46 @@ namespace chip8 {
 
 using Sprite = Memory::Bytes;
 
+class GpuImpl;
+
+class Framebuffer
+{
+    public:
+        Framebuffer(SDL_Renderer * renderer);
+        ~Framebuffer();
+
+        SDL_Texture * frame() { return frame_; }
+
+        uint8_t getPixel(uint8_t x, uint8_t y);
+        void    setPixel(uint8_t x, uint8_t y, uint8_t byte);
+
+        void draw();
+
+    private:
+        friend GpuImpl;
+        using Pixel = uint32_t;
+
+        static const uint32_t PIXEL_FORMAT = SDL_PIXELFORMAT_RGBA8888;
+        static const size_t PIXEL_SIZE = sizeof(Pixel);
+
+        static const uint32_t DISPLAY_WIDTH = 64;
+        static const uint32_t DISPLAY_HEIGHT = 32;
+
+        /// @brief GPU framebuffer size.
+        static constexpr uint16_t FRAMEBUFFER_SIZE = DISPLAY_WIDTH * DISPLAY_HEIGHT;
+
+        static uint16_t computeLinearAddress(uint8_t x, uint8_t y);
+
+        SDL_Rect       frameRect_;
+        SDL_Texture *  frame_;
+
+        Pixel pixelbuffer_[FRAMEBUFFER_SIZE];
+};
+
 /// @brief Represent the CHIP-8 GPU.
 class Gpu
 {
     public:
-        static const uint16_t DISPLAY_WIDTH = 64;
-        static const uint16_t DISPLAY_HEIGHT = 32;
-
         virtual ~Gpu() {}
 
         virtual void clearFrame() = 0;
@@ -51,21 +85,16 @@ class Gpu
 class GpuImpl : public Gpu
 {
     public:
-        GpuImpl(SDL_Window * window);
+        GpuImpl(SDL_Renderer * renderer);
         ~GpuImpl();
 
-        void clearFrame();
+        void clearFrame() override;
         bool drawSprite(uint8_t x, uint8_t y, Sprite const& sprite) override;
         void draw() override;
 
     private:
-        static uint16_t computeLinearAddress(uint8_t x, uint8_t y);
-
-        SDL_Window  *  window_;
         SDL_Renderer * renderer_;
-        SDL_Rect       viewport_;
-        SDL_Texture *  frame_;
-        uint32_t *     pixels_;
+        std::unique_ptr<Framebuffer> framebuffer_;
 };
 
 }  // chip8

@@ -35,9 +35,6 @@ namespace chip8 {
 /// @brief System memory size.
 constexpr uint16_t SYSTEM_MEMORY_SIZE = 4096;
 
-/// @brief GPU framebuffer size.
-constexpr uint16_t FRAMEBUFFER_SIZE = 2048;
-
 }  // chip8
 
 #endif  // CHIP8_CORE_HPP

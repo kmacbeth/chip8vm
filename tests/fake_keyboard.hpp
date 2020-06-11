@@ -42,20 +42,28 @@ class FakeKeyboard : public Keyboard
         {
         }
 
-        void pressKey(uint16_t key) override
+        void pressKey(uint16_t key)
         {
             keys[key] = true;
         }
 
-        void releaseKey(uint16_t key) override
+        void releaseKey(uint16_t key)
         {
             keys[key] = false;
+        }
+
+
+        bool isQuitRequested() const override
+        {
+            return false;
         }
 
         bool isKeyPressed(uint16_t key) const override
         {
             return keys[key];
         }
+
+        void update() override { }
 
         bool keys[KEY_COUNT];
 };

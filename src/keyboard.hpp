@@ -24,7 +24,11 @@
 #ifndef CHIP8_KEYBOARD_HPP
 #define CHIP8_KEYBOARD_HPP
 
+#include <cstdio>
+#include <SDL2/SDL.h>
+
 #include <core.hpp>
+
 
 namespace chip8 {
 
@@ -36,21 +40,29 @@ class Keyboard
 
         virtual ~Keyboard() {}
 
-        virtual void pressKey(uint16_t key) = 0;
-        virtual void releaseKey(uint16_t key) = 0;
+        virtual bool isQuitRequested() const = 0;
         virtual bool isKeyPressed(uint16_t key) const  = 0;
+        virtual void update() = 0;
 };
 
 /// @brief Keyboard implementation
 class KeyboardImpl : public Keyboard
 {
     public:
-        KeyboardImpl() { }
-        ~KeyboardImpl() { }
+        KeyboardImpl();
+        ~KeyboardImpl();
 
-        void pressKey(uint16_t key) override { }
-        void releaseKey(uint16_t key) override { }
-        bool isKeyPressed(uint16_t key) const override { return false; }
+        bool isQuitRequested() const
+        {
+            return quit_;
+        }
+
+        bool isKeyPressed(uint16_t key) const override;
+        void update() override;
+
+    private:
+        bool quit_;
+        bool keys_[KEY_COUNT];
 };
 
 }  // chip8

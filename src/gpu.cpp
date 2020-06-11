@@ -21,10 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
 #include <SDL2/SDL.h>
 
 #include <memory.hpp>
@@ -32,75 +28,125 @@
 
 namespace chip8 {
 
+/// @brief Construct a framebuffer instance.
+///
+/// @param renderer  Reference to renderer to construct texture frame.
+Framebuffer::Framebuffer(SDL_Renderer * renderer)
+    : pixelbuffer_{ }
+    , frame_{ nullptr }
+{
+    frame_ = SDL_CreateTexture(renderer,
+                               SDL_PIXELFORMAT_RGBA8888,
+                               SDL_TEXTUREACCESS_STREAMING,
+                               DISPLAY_WIDTH,
+                               DISPLAY_HEIGHT);
+}
+
+/// @brief Destroy the framebuffer instance.
+Framebuffer::~Framebuffer()
+{
+    SDL_DestroyTexture(frame_);
+}
+
+/// @brief Set pixel value.
+///
+/// @param x     X coordinate in display.
+/// @param y     Y coordinate in display.
+/// @param byte  Pixel value.
+void Framebuffer::setPixel(uint8_t x, uint8_t y, uint8_t pixel)
+{
+    auto address = computeLinearAddress(x, y);
+    pixelbuffer_[address] = (0xFFFFFF00 * pixel) | 0x000000FF;
+}
+
+/// @brief Get pixel value.
+///
+/// @param x     X coordinate in display.
+/// @param y     Y coordinate in display.
+/// @return Pixel value.
+uint8_t Framebuffer::getPixel(uint8_t x, uint8_t y)
+{
+    auto address = computeLinearAddress(x, y);
+    auto pixel = (pixelbuffer_[address] >> 8);
+    return pixel & 0x1;
+}
+
+/// @brief Draw framebuffer to frame texture.
+void Framebuffer::draw()
+{
+    SDL_UpdateTexture(frame_, nullptr, pixelbuffer_, DISPLAY_WIDTH * PIXEL_SIZE);
+}
+
+/// @brief Compute address from (x,y) coords.
+///
+/// @param x  X coordinate.
+/// @param y  Y coordinate.
+/// @return 16-bit address.
+uint16_t Framebuffer::computeLinearAddress(uint8_t x, uint8_t y)
+{
+    // Wrap around screen
+    x &= (DISPLAY_WIDTH - 1);
+    y &= (DISPLAY_HEIGHT - 1);
+
+    return DISPLAY_WIDTH * y + x;
+}
 
 /// @brief Construct a GPU instance with framebuffer.
 ///
-/// @param window  SDL window.
-/// @param frame   SDL surface for screen.
-GpuImpl::GpuImpl(SDL_Window * window)
-    : window_{ window }
-    , renderer_{ nullptr }
-    , viewport_{ }
-    , frame_{ nullptr }
-    , pixels_{ nullptr }
+/// @param renderer  Instance of gpu renderer.
+GpuImpl::GpuImpl(SDL_Renderer * renderer)
+    : renderer_{ renderer }
+    , framebuffer_{ std::make_unique<Framebuffer>(renderer) }
 {
-    renderer_ = SDL_CreateRenderer(window_, -1, 0);
-
-    SDL_RenderGetViewport(renderer_, &viewport_);
-
-    // Check https://github.com/JamesGriffin/CHIP-8-Emulator/blob/master/src/main.cpp
-    frame_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, viewport_.w, viewport_.h);
-    pixels_ = static_cast<uint32_t *>(std::malloc(sizeof(uint32_t) * viewport_.w * viewport_.h));
-
-    std::memset(pixels_, 0x00, sizeof(uint32_t) * viewport_.w * viewport_.h);
 }
 
 /// @brief Destroy the GPU instance.
 GpuImpl::~GpuImpl()
 {
-    SDL_DestroyWindow(window_);
     SDL_DestroyRenderer(renderer_);
-    SDL_DestroyTexture(frame_);
-    std::free(pixels_);
 }
 
+/// @brief Clear frame buffer.
 void GpuImpl::clearFrame()
 {
-    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+    for (size_t y = 0; y < Framebuffer::DISPLAY_HEIGHT; ++y)
+    {
+        for (size_t x = 0; x < Framebuffer::DISPLAY_WIDTH; ++x)
+        {
+            framebuffer_->setPixel(x, y, 0);
+        }
+    }
+
+    draw();
 }
 
 /// @brief Draw a sprite.
 ///
-/// @param x  X coordinate on display screen.
-/// @param y  Y coordinate on display screen.
-/// @return Pixel was erased.
+/// @param x       X coordinate on display screen.
+/// @param y       Y coordinate on display screen.
+/// @param sprite  Spite 8xN
+/// @return True when a pixel is erased, otherwise false.
 bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
 {
     bool erased = false;
 
-#if 0
-    for (size_t spriteIndex = 0; spriteIndex < sprite.size(); ++spriteIndex)
+    for (size_t spriteY = 0; spriteY < sprite.size(); ++spriteY)
     {
-        uint8_t yPixel = y + spriteIndex;
-
-        for (uint8_t bitIndex = 0x80, xPixel = x; bitIndex != 0; bitIndex >>= 1, ++xPixel)
+        for (size_t spriteX = 0; spriteX < 8; ++spriteX)
         {
-            uint8_t spriteValue = (sprite[spriteIndex] & bitIndex) ? 0xFF : 0x00;
+            uint8_t currentPixel = framebuffer_->getPixel(x + spriteX, y + spriteY);
+            uint8_t spritePixel = (sprite[spriteY] >> (7 - spriteX)) & 0x1;
 
-            uint16_t address = computeLinearAddress(xPixel, yPixel);
-            uint8_t pixel = framebuffer_.load<uint8_t>(address) ^ spriteValue;
-
-            std::printf("Address 0x%04X    Sprite Value %02X    Pixel %02X    (x,y) = (%u,%u)\n", address, spriteValue, pixel, xPixel, yPixel);
-
-            if (pixel == 0)
+            if (currentPixel == 1 && spritePixel == 1)
             {
                 erased = true;
             }
 
-            framebuffer_.store(address, pixel);
+            currentPixel ^= spritePixel;
+
+            framebuffer_->setPixel(x + spriteX, y + spriteY, currentPixel);
         }
     }
-#endif
 
     return erased;
 }
@@ -108,33 +154,11 @@ bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
 /// @brief Draw framebuffer to window.
 void GpuImpl::draw()
 {
-
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 0] = 0xFFFFFF00;
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 1] = 0xFFFFFF00;
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 2] = 0xFFFFFF00;
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 3] = 0xFFFFFF00;
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 4] = 0xFFFFFF00;
-    pixels_[2 * viewport_.w * sizeof(uint32_t) + 5] = 0xFFFFFF00;
-
-    SDL_UpdateTexture(frame_, NULL, pixels_, viewport_.w * sizeof(uint32_t));
+    framebuffer_->draw();
 
     SDL_RenderClear(renderer_);
-    SDL_RenderCopy(renderer_, frame_, NULL, NULL);
+    SDL_RenderCopy(renderer_, framebuffer_->frame_, nullptr, nullptr);
     SDL_RenderPresent(renderer_);
 }
 
-/// @brief Compute address from (x,y) coords.
-///
-/// @param x X coordinate.
-/// @param y Y coordinate.
-/// @return 16-bit address.
-uint16_t GpuImpl::computeLinearAddress(uint8_t x, uint8_t y)
-{
-    // Wrap around screen
-    x &= (DISPLAY_WIDTH-1);
-    y &= (DISPLAY_HEIGHT-1);
-
-    return DISPLAY_WIDTH * y + x;
-}
-
-}  // chip8
+} // namespace chip8
