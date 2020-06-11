@@ -36,13 +36,23 @@ using Sprite = Memory::Bytes;
 
 class GpuImpl;
 
+/// @brief  Framebuffer for the GpuImpl.
 class Framebuffer
 {
     public:
+        /// @brief Display width for CHIP-8
+        static const uint32_t DISPLAY_WIDTH = 64;
+        /// @brief Display height for CHIP-8
+        static const uint32_t DISPLAY_HEIGHT = 32;
+
         Framebuffer(SDL_Renderer * renderer);
         ~Framebuffer();
 
-        SDL_Texture * frame() { return frame_; }
+        /// @brief Return a refernce to the frame texture.
+        SDL_Texture * frame()
+        {
+            return frame_;
+        }
 
         uint8_t getPixel(uint8_t x, uint8_t y);
         void    setPixel(uint8_t x, uint8_t y, uint8_t byte);
@@ -50,23 +60,23 @@ class Framebuffer
         void draw();
 
     private:
-        friend GpuImpl;
+        /// @brief Pixel type.
         using Pixel = uint32_t;
 
+        /// @brief Pixel format to use.
         static const uint32_t PIXEL_FORMAT = SDL_PIXELFORMAT_RGBA8888;
+        /// @brief Pixel size in bytes
         static const size_t PIXEL_SIZE = sizeof(Pixel);
-
-        static const uint32_t DISPLAY_WIDTH = 64;
-        static const uint32_t DISPLAY_HEIGHT = 32;
 
         /// @brief GPU framebuffer size.
         static constexpr uint16_t FRAMEBUFFER_SIZE = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
         static uint16_t computeLinearAddress(uint8_t x, uint8_t y);
 
-        SDL_Rect       frameRect_;
+        /// @brief Texture representing the CHIP-8 display
         SDL_Texture *  frame_;
 
+        /// @brief Local copy of pixel values.
         Pixel pixelbuffer_[FRAMEBUFFER_SIZE];
 };
 
@@ -93,7 +103,9 @@ class GpuImpl : public Gpu
         void draw() override;
 
     private:
+        /// @brief Renderer to display pixels.
         SDL_Renderer * renderer_;
+        /// @brief Framebuffer containing the pixels.
         std::unique_ptr<Framebuffer> framebuffer_;
 };
 

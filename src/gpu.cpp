@@ -36,7 +36,7 @@ Framebuffer::Framebuffer(SDL_Renderer * renderer)
     , frame_{ nullptr }
 {
     frame_ = SDL_CreateTexture(renderer,
-                               SDL_PIXELFORMAT_RGBA8888,
+                               PIXEL_FORMAT,
                                SDL_TEXTUREACCESS_STREAMING,
                                DISPLAY_WIDTH,
                                DISPLAY_HEIGHT);
@@ -157,7 +157,7 @@ void GpuImpl::draw()
     framebuffer_->draw();
 
     SDL_RenderClear(renderer_);
-    SDL_RenderCopy(renderer_, framebuffer_->frame_, nullptr, nullptr);
+    SDL_RenderCopy(renderer_, framebuffer_->frame(), nullptr, nullptr);
     SDL_RenderPresent(renderer_);
 }
 

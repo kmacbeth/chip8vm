@@ -21,53 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef CHIP8_KEYBOARD_HPP
-#define CHIP8_KEYBOARD_HPP
+#ifndef CHIP8_VIRTUALMACHINE_HPP
+#define CHIP8_VIRTUALMACHINE_HPP
 
-#include <cstdio>
 #include <SDL2/SDL.h>
 
-#include <core.hpp>
+#include <memory.hpp>
+#include <gpu.hpp>
+#include <keyboard.hpp>
+#include <cpu.hpp>
 
 
 namespace chip8 {
 
-/// @brief Keyboard interface.
-class Keyboard
+/// @brief CHIP-8 virtual machine.
+class VirtualMachine
 {
     public:
-        static constexpr uint32_t KEY_COUNT = 16;
+        VirtualMachine();
+        ~VirtualMachine();
 
-        virtual ~Keyboard() {}
-
-        virtual bool isQuitRequested() const = 0;
-        virtual bool isKeyPressed(uint16_t key) const  = 0;
-        virtual void update() = 0;
-};
-
-/// @brief Keyboard implementation.
-class KeyboardImpl : public Keyboard
-{
-    public:
-        KeyboardImpl();
-        ~KeyboardImpl();
-
-        /// @brief Check if quit is requested.
-        bool isQuitRequested() const
-        {
-            return quit_;
-        }
-
-        bool isKeyPressed(uint16_t key) const override;
-        void update() override;
+        bool initialize();
+        void start();
 
     private:
-        /// @brief Quit event set.
-        bool quit_;
-        /// @brief The keys state.
-        bool keys_[KEY_COUNT];
+        SDL_Window * window_;
+
+        std::shared_ptr<chip8::Gpu> gpu_;
+        std::shared_ptr<chip8::Keyboard> keyboard_;
+        std::shared_ptr<chip8::Memory> memory_;
+        std::shared_ptr<chip8::Cpu> cpu_;
 };
 
-}  // chip8
+} // namespace chip8
 
-#endif  // CHIP8_KEYBOARD_HPP
+#endif // CHIP8_VIRTUALMACHINE_HPP

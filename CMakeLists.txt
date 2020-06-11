@@ -9,6 +9,8 @@ find_package(SDL2 REQUIRED)
 # Create executable target
 add_executable(chip8
     src/main.cpp
+    src/virtual_machine.hpp
+    src/virtual_machine.cpp
     src/memory.hpp
     src/memory.cpp
     src/cpu.hpp

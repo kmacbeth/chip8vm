@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <cstring>
 #include <unordered_map>
 
 #include "keyboard.hpp"
@@ -29,6 +30,7 @@ namespace chip8 {
 
 namespace {
 
+/// @brief Key mapping
 const std::unordered_map<SDL_Keycode, size_t> KEYMAP = {
     { SDLK_0,  0 },
     { SDLK_1,  1 },
@@ -50,20 +52,28 @@ const std::unordered_map<SDL_Keycode, size_t> KEYMAP = {
 
 } // namespace
 
+/// @brief Construct a keyboard implementation instance.
 KeyboardImpl::KeyboardImpl()
     : quit_{ false }
 {
+    std::memset(&keys_, false, sizeof(bool) * KEY_COUNT);
 }
 
+/// @brief Destroy the keyboard instance.
 KeyboardImpl::~KeyboardImpl()
 {
 }
 
+/// @brief Is key currently pressed.
+///
+/// @param key  The key to check.
+/// @return True when pressed, otherwise false.
 bool KeyboardImpl::isKeyPressed(uint16_t key) const
 {
     return keys_[key];
 }
 
+/// @brief Update keyboard events.
 void KeyboardImpl::update()
 {
     SDL_Event event;
@@ -82,7 +92,6 @@ void KeyboardImpl::update()
             if (entry != KEYMAP.end())
             {
                 keys_[entry->second] = true;
-                std::printf("Key pressed %lu\n", entry->second);
             }
         }
 
@@ -93,7 +102,6 @@ void KeyboardImpl::update()
             if (entry != KEYMAP.end())
             {
                 keys_[entry->second] = false;
-                std::printf("Key unpressed %lu\n", entry->second);
             }
         }
     }
