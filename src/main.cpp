@@ -27,7 +27,7 @@ int main(int argc, char * argv[])
 {
     chip8::VirtualMachine chip8vm;
 
-    if (!chip8vm.initialize())
+    if (!chip8vm.initialize(argc, argv))
     {
         return 1;
     }

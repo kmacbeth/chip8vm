@@ -21,9 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <cstdio>
+#include <unistd.h>
+
 #include "virtual_machine.hpp"
 
+
 namespace chip8 {
+
 
 /// @brief Construct a CHIP-8 VM instance.
 VirtualMachine::VirtualMachine()
@@ -45,8 +50,25 @@ VirtualMachine::~VirtualMachine()
 /// @brief Initialize the virtual machine.
 ///
 /// @return True when initialized, otherwise false.
-bool VirtualMachine::initialize()
+bool VirtualMachine::initialize(int argc, char * argv[])
 {
+    // check for a file
+    if (argc < 2)
+    {
+        std::puts("No file.");
+        return false;
+    }
+
+    std::string filename{ argv[1] };
+
+    int fileStatus = ::access(filename.c_str(), F_OK);
+
+    if (fileStatus == -1)
+    {
+        std::printf("No such file `%s'\n", filename.c_str());
+        return false;
+    }
+
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
     {
         return false;
@@ -73,6 +95,24 @@ bool VirtualMachine::initialize()
     keyboard_ = std::make_shared<chip8::KeyboardImpl>();
     memory_ = std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE);
     cpu_ = std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_);
+
+    // TODO: add font table to memory (0 to 79 address)
+
+    // Load file into memory at START_ADDRESS
+    std::FILE * programFile = std::fopen(filename.c_str(), "rb");
+    std::size_t byteCount = 0;
+    uint16_t address = Cpu::PROGRAM_START;
+
+    do
+    {
+        uint8_t byte = 0;
+        byteCount = std::fread(&byte, 1, 1, programFile);
+        memory_->store(address++, byte);
+    }
+    while (byteCount != 0);
+
+    std::fclose(programFile);
+    std::puts("File loaded!");
 
     return true;
 }

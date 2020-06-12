@@ -41,7 +41,7 @@ class VirtualMachine
         VirtualMachine();
         ~VirtualMachine();
 
-        bool initialize();
+        bool initialize(int argc, char * argv[]);
         void start();
 
     private:
