@@ -92,12 +92,6 @@ void Debugger::update()
     }
 }
 
-/// @brief Request CPU timer update
-void Debugger::updateTimer()
-{
-    cpu_->updateTimer();
-}
-
 /// @brief Get CPU registers context.
 ///
 /// @return Registers context.
@@ -123,12 +117,12 @@ void Debugger::traceOpcode()
 /// @brief Trace registers context to console.
 void Debugger::traceRegContext()
 {
-    std::printf(" PC: %04X  I:  %04X  SP: %02X  DT: %02X  ST: %02X\n",
+    std::printf(" PC: %-4X  I:  %-4X  SP: %-4X  DT: %-4X  ST: %-4X\n",
                 regContext_.pc, regContext_.i, regContext_.sp, regContext_.dt, regContext_.st);
 
     for (uint16_t i = 0; i < chip8::Cpu::REG_COUNT; ++i)
     {
-        std::printf(" V%X: %02X  ", i, regContext_.vx[i]);
+        std::printf(" V%X: %-4X ", i, regContext_.vx[i]);
     }
     std::puts("");
 }

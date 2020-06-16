@@ -75,7 +75,6 @@ class Cpu
         virtual void tick(uint32_t tick) = 0;
         virtual void reset() = 0;
         virtual void update() = 0;
-        virtual void updateTimer() = 0;
 
         virtual RegContext const& getRegContext() const = 0;
         virtual opcode::Opcode    getOpcode() const = 0;
@@ -93,7 +92,6 @@ class CpuImpl : public Cpu
         virtual void tick(uint32_t tick) override { tick_ = tick; }
         virtual void reset() override;
         virtual void update() override;
-        virtual void updateTimer () override;
 
         RegContext const& getRegContext() const override { return regs_; }
         opcode::Opcode getOpcode() const override { return opcode_; }
@@ -119,6 +117,8 @@ class CpuImpl : public Cpu
                 /// @brief Reference to cpu instance.
                 CpuImpl * cpu_;
         };
+
+        void updateTimer();
 
         void opcodeClearDisplay();
         void opcodeReturn();

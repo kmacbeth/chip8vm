@@ -149,6 +149,8 @@ void CpuImpl::update()
 
     regs_.pc += PC_INCR;
     opcodeDecoder_.decode(opcode_);
+
+    updateTimer();
 }
 
 /// @brief Update timer.
@@ -508,14 +510,16 @@ void CpuImpl::opcodeAddIRegister()
     regs_.i += regs_.vx[op.x];
 }
 
-/// @brief Load I register with address.
+/// @brief Load I register with font address.
 ///
 /// Opcode Fx29 (LD F, Vx)
 void CpuImpl::opcodeLoadIRegisterWithAddress()
 {
     auto op = opcode::decodeFX29(opcode_);
 
-    regs_.i = (op.x << 3);
+    auto font = regs_.vx[op.x];
+
+    regs_.i = (font * 5);
 }
 
 /// @brief Store binary coded decimal from Vx.

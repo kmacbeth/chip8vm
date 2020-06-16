@@ -54,6 +54,22 @@ uint8_t FONT_SET[] = {
 
 const std::size_t FONT_SET_SIZE = sizeof(FONT_SET) / sizeof(FONT_SET[0]);
 
+/// @brief Check file.
+///
+/// @param filename Filename to check.
+bool checkFile(std::string const& filename)
+{
+    int fileStatus = ::access(filename.c_str(), F_OK);
+
+    if (fileStatus == -1)
+    {
+        std::printf("No such file `%s'\n", filename.c_str());
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 /// @brief Construct a CHIP-8 VM instance.
@@ -75,6 +91,8 @@ VirtualMachine::~VirtualMachine()
 
 /// @brief Initialize the virtual machine.
 ///
+/// @param argc  Argument count.
+/// @param argv  Argument list.
 /// @return True when initialized, otherwise false.
 bool VirtualMachine::initialize(int argc, char * argv[])
 {
@@ -87,11 +105,8 @@ bool VirtualMachine::initialize(int argc, char * argv[])
 
     std::string filename{ argv[1] };
 
-    int fileStatus = ::access(filename.c_str(), F_OK);
-
-    if (fileStatus == -1)
+    if (!checkFile(filename))
     {
-        std::printf("No such file `%s'\n", filename.c_str());
         return false;
     }
 
@@ -121,15 +136,57 @@ bool VirtualMachine::initialize(int argc, char * argv[])
     keyboard_ = std::make_shared<chip8::KeyboardImpl>();
     memory_ = std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE);
     cpu_ = std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_);
-    debugger_ = std::make_shared<chip8::Debugger>(cpu_, memory_);
 
-    // Add font table to memory (0 to 79 address)
+    loadFontset();
+    loadFile(filename);
+
+    return true;
+}
+
+/// @brief Start the virtual machine.
+void VirtualMachine::start()
+{
+    const uint32_t FRAME_RATE = 30;
+    const uint32_t FRAME_DURATION = 1000 / FRAME_RATE;
+    const uint32_t CPU_CYCLE = 2;
+
+    gpu_->clearFrame();
+    cpu_->reset();
+
+    uint32_t gpuTick = SDL_GetTicks();
+
+    while (!keyboard_->isQuitRequested())
+    {
+        cpu_->tick(SDL_GetTicks());
+        cpu_->update();
+
+        keyboard_->update();
+
+        uint32_t gpuTimeElapsed = SDL_GetTicks() - gpuTick;
+
+        if (gpuTimeElapsed >= FRAME_DURATION)
+        {
+            gpu_->draw();
+            gpuTick = SDL_GetTicks();
+        }
+
+        SDL_Delay(CPU_CYCLE);
+    }
+}
+
+/// @brief Load fontset.
+void VirtualMachine::loadFontset()
+{
+    // Add font table to memory (80 bytes)
     for (std::size_t fontAddress = 0; fontAddress < FONT_SET_SIZE; ++fontAddress)
     {
         memory_->store(fontAddress, FONT_SET[fontAddress]);
     }
+}
 
-    // Load file into memory at START_ADDRESS
+/// @brief Load file to memory at start address.
+void VirtualMachine::loadFile(std::string const& filename)
+{
     std::FILE * programFile = std::fopen(filename.c_str(), "rb");
     std::size_t byteCount = 0;
     uint16_t address = Cpu::PROGRAM_START;
@@ -143,42 +200,6 @@ bool VirtualMachine::initialize(int argc, char * argv[])
     while (byteCount != 0);
 
     std::fclose(programFile);
-    std::puts("File loaded!");
-
-    return true;
-}
-
-/// @brief Start the virtual machine.
-void VirtualMachine::start()
-{
-    const uint32_t FRAME_RATE = 60;
-    const uint32_t FRAME_DURATION = 1000 / FRAME_RATE;
-
-    debugger_->setTraces(Debugger::Traces::OPCODE | Debugger::Traces::REGISTERS);
-
-    gpu_->clearFrame();
-    cpu_->reset();
-
-    uint32_t gpuTick = SDL_GetTicks();
-
-    while (!keyboard_->isQuitRequested())
-    {
-        debugger_->tick(SDL_GetTicks());
-        debugger_->update();
-        debugger_->updateTimer();
-
-        keyboard_->update();
-
-        uint32_t gpuTimeElapsed = SDL_GetTicks() - gpuTick;
-
-        if (gpuTimeElapsed >= FRAME_DURATION)
-        {
-            gpu_->draw();
-            gpuTick = SDL_GetTicks();
-        }
-
-        SDL_Delay(1);
-    }
 }
 
 } // namespace chip8

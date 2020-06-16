@@ -58,7 +58,6 @@ class Debugger : public Cpu
         void tick(uint32_t tick) override;
         void reset() override;
         void update() override;
-        void updateTimer() override;
 
     private:
         Cpu::RegContext const& getRegContext() const override;

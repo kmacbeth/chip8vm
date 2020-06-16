@@ -26,7 +26,6 @@
 
 #include <memory.hpp>
 #include <cpu.hpp>
-#include <debugger.hpp>
 
 #include "fake_gpu.hpp"
 #include "fake_keyboard.hpp"
@@ -34,15 +33,58 @@
 using OpcodeList = chip8::Memory::Words;
 using Data = chip8::Memory::Bytes;
 
+class CpuContext
+{
+    public:
+        CpuContext(std::shared_ptr<chip8::Cpu> cpu)
+            : cpu_{ std::move(cpu) }
+        {
+        }
+
+        uint16_t getProgramCounter() const
+        {
+            return cpu_->getRegContext().pc;
+        }
+
+        uint8_t getRegisterVx(uint16_t vxIndex) const
+        {
+            return cpu_->getRegContext().vx[vxIndex];
+        }
+
+        uint8_t getStackPointer() const
+        {
+            return cpu_->getRegContext().sp;
+        }
+
+        uint16_t getRegisterI() const
+        {
+            return cpu_->getRegContext().i;
+        }
+
+        uint8_t getDelayTimer() const
+        {
+            return cpu_->getRegContext().dt;
+        }
+
+        uint8_t getSoundTimer() const
+        {
+            return cpu_->getRegContext().st;
+        }
+
+    private:
+        std::shared_ptr<chip8::Cpu> cpu_;
+};
+
 class Chip8TestVm
 {
     public:
+
         Chip8TestVm()
             : memory_{ std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE) }
             , gpu_{ std::make_shared<chip8::FakeGpu>() }
             , keyboard_{ std::make_shared<chip8::FakeKeyboard>() }
             , cpu_{ std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_) }
-            , debugger_{ std::make_shared<chip8::Debugger>(cpu_, memory_) }
+            , cpuContext_{ std::make_shared<CpuContext>(cpu_) }
         {
         }
 
@@ -63,15 +105,10 @@ class Chip8TestVm
 
         void run()
         {
-            debugger_->update();
+            cpu_->update();
         }
 
-        void setDebugTrace(chip8::Debugger::Traces traces)
-        {
-            debugger_->setTraces(traces);
-        }
-
-        chip8::Debugger const& debugger() { return *debugger_; }
+        CpuContext const& cpu() { return *cpuContext_; }
 
         chip8::FakeGpu & gpu() { return *gpu_; }
         chip8::FakeKeyboard & keyboard() { return *keyboard_; }
@@ -81,7 +118,8 @@ class Chip8TestVm
         std::shared_ptr<chip8::FakeGpu> gpu_;
         std::shared_ptr<chip8::FakeKeyboard> keyboard_;
         std::shared_ptr<chip8::Cpu> cpu_;
-        std::shared_ptr<chip8::Debugger> debugger_;
+
+        std::shared_ptr<CpuContext> cpuContext_;
 };
 
 
@@ -112,8 +150,8 @@ TEST_CASE("Test jump to address", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getProgramCounter() == address);
-    REQUIRE(vm.debugger().getStackPointer() == 0);
+    REQUIRE(vm.cpu().getProgramCounter() == address);
+    REQUIRE(vm.cpu().getStackPointer() == 0);
 }
 
 TEST_CASE("Test call subroutine", "[opcode]")
@@ -129,8 +167,8 @@ TEST_CASE("Test call subroutine", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getStackPointer() == 1);
-    REQUIRE(vm.debugger().getProgramCounter() == address);
+    REQUIRE(vm.cpu().getStackPointer() == 1);
+    REQUIRE(vm.cpu().getProgramCounter() == address);
 }
 
 TEST_CASE("Test return from subroutine", "[opcode]")
@@ -148,12 +186,12 @@ TEST_CASE("Test return from subroutine", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getStackPointer() == 1);
-    REQUIRE(vm.debugger().getProgramCounter() == address);
+    REQUIRE(vm.cpu().getStackPointer() == 1);
+    REQUIRE(vm.cpu().getProgramCounter() == address);
 
     vm.run();
-    REQUIRE(vm.debugger().getStackPointer() == 0);
-    REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
+    REQUIRE(vm.cpu().getStackPointer() == 0);
+    REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
 }
 
 TEST_CASE("Test load number to Vx register", "[opcode]")
@@ -170,7 +208,7 @@ TEST_CASE("Test load number to Vx register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 }
 
 TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
@@ -186,10 +224,10 @@ TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
 
         vm.storeCode(opcodes);
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
     }
 
     SECTION("Vx register is not equal to number")
@@ -200,10 +238,10 @@ TEST_CASE("Test skip next opcode if Vx register is equal to number", "[opcode]")
 
         vm.storeCode(opcodes);
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
     }
 }
 
@@ -220,10 +258,10 @@ TEST_CASE("Test skip next opcode if Vx register is not equals to number", "[opco
 
         vm.storeCode(opcodes);
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
     }
 
     SECTION("Vx register is equal to number")
@@ -234,10 +272,10 @@ TEST_CASE("Test skip next opcode if Vx register is not equals to number", "[opco
 
         vm.storeCode(opcodes);
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 2);
     }
 }
 
@@ -256,11 +294,11 @@ TEST_CASE("Test skip next opcode if Vx register equals Vy register", "[opcode]")
 
         vm.storeCode(opcodes);
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x00);
-        CHECK(vm.debugger().getRegisterVx(vyIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vyIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
     }
 
     SECTION("Vx register is not equal to Vy register")
@@ -274,11 +312,11 @@ TEST_CASE("Test skip next opcode if Vx register equals Vy register", "[opcode]")
 
         vm.run();
 
-        CHECK(vm.debugger().getRegisterVx(vxIndex) == 0x01);
-        CHECK(vm.debugger().getRegisterVx(vyIndex) == 0x00);
+        CHECK(vm.cpu().getRegisterVx(vxIndex) == 0x01);
+        CHECK(vm.cpu().getRegisterVx(vyIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 4);
     }
 }
 
@@ -294,10 +332,10 @@ TEST_CASE("Test add number to Vx register", "[opcode]")
     };
 
     vm.storeCode(opcodes);
-    CHECK(vm.debugger().getRegisterVx(vxIndex) == 0);
+    CHECK(vm.cpu().getRegisterVx(vxIndex) == 0);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 }
 
 TEST_CASE("Test load Vy register to Vx register", "[opcode]")
@@ -317,10 +355,10 @@ TEST_CASE("Test load Vy register to Vx register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte);
 }
 
 TEST_CASE("Test OR register Vx with register Vy", "[opcode]")
@@ -345,11 +383,11 @@ TEST_CASE("Test OR register Vx with register Vy", "[opcode]")
 
     vm.run();
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 | expectedByte2));
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == (expectedByte1 | expectedByte2));
 }
 
 TEST_CASE("Test AND register Vx with register Vy", "[opcode]")
@@ -374,11 +412,11 @@ TEST_CASE("Test AND register Vx with register Vy", "[opcode]")
 
     vm.run();
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 & expectedByte2));
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == (expectedByte1 & expectedByte2));
 }
 
 TEST_CASE("Test XOR register Vx with register Vy", "[opcode]")
@@ -401,11 +439,11 @@ TEST_CASE("Test XOR register Vx with register Vy", "[opcode]")
 
     vm.run();
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-    REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+    REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte1 ^ expectedByte2));
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == (expectedByte1 ^ expectedByte2));
 
 }
 
@@ -432,12 +470,12 @@ TEST_CASE("Test add register Vx with register Vy", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte1 + expectedByte2) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte1 + expectedByte2) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x0);
     }
 
     SECTION("Add with overflow")
@@ -456,12 +494,12 @@ TEST_CASE("Test add register Vx with register Vy", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte4);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte3);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte4);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte3 + expectedByte4) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte3 + expectedByte4) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x1);
     }
 }
 
@@ -489,12 +527,12 @@ TEST_CASE("Test subtract register Vx with register Vy", "[opcode]")
         // No overflow
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte1 - expectedByte2) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte1 - expectedByte2) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x1);
     }
 
     SECTION("Subtract with overflow")
@@ -512,12 +550,12 @@ TEST_CASE("Test subtract register Vx with register Vy", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte4);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte3);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte4);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte3 - expectedByte4) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte3 - expectedByte4) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x0);
     }
 }
 
@@ -540,11 +578,11 @@ TEST_CASE("Shift right register Vy to register Vx", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == (expectedByte >> 1));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x1));
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == (expectedByte >> 1));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == (expectedByte & 0x1));
     }
 
     SECTION("Shift LSB sets VF")
@@ -559,11 +597,11 @@ TEST_CASE("Shift right register Vy to register Vx", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(static_cast<int>(vm.debugger().getRegisterVx(vxIndex)) == (expectedByte >> 1));
-        REQUIRE(static_cast<int>(vm.debugger().getRegisterVx(0xF)) == (expectedByte & 0x1));
+        REQUIRE(static_cast<int>(vm.cpu().getRegisterVx(vxIndex)) == (expectedByte >> 1));
+        REQUIRE(static_cast<int>(vm.cpu().getRegisterVx(0xF)) == (expectedByte & 0x1));
     }
 }
 
@@ -589,12 +627,12 @@ TEST_CASE("Test subtract register Vy with register Vx", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte1);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte2);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte1);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte2);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte2 - expectedByte1) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte2 - expectedByte1) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x1);
     }
 
     SECTION("Subtract with overflow")
@@ -612,12 +650,12 @@ TEST_CASE("Test subtract register Vy with register Vx", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte3);
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte4);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte3);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte4);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte4 - expectedByte3) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte4 - expectedByte3) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x0);
     }
 }
 
@@ -640,11 +678,11 @@ TEST_CASE("Test shift left register Vy to register Vx", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x80));
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == (expectedByte & 0x80));
     }
 
     SECTION("Shift MSB sets VF")
@@ -659,11 +697,11 @@ TEST_CASE("Test shift left register Vy to register Vx", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vyIndex) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(vyIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == (expectedByte & 0x80));
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == ((expectedByte << 1) & 0xFF));
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == (expectedByte & 0x80));
     }
 }
 
@@ -682,10 +720,10 @@ TEST_CASE("Skip next if register Vx not equals Vy", "[opcode]")
         };
 
         vm.storeCode(opcodes);
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x2);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x2);
     }
 
     SECTION("Register Vx is not equal to Vy")
@@ -700,10 +738,10 @@ TEST_CASE("Skip next if register Vx not equals Vy", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x6);
+        REQUIRE(vm.cpu().getProgramCounter() == chip8::Cpu::PROGRAM_START + 0x6);
     }
 }
 
@@ -720,7 +758,7 @@ TEST_CASE("Load address to I register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == expectedAddress);
+    REQUIRE(vm.cpu().getRegisterI() == expectedAddress);
 }
 
 TEST_CASE("Jump to location plus V0 offset")
@@ -737,10 +775,10 @@ TEST_CASE("Jump to location plus V0 offset")
 
         vm.storeCode(opcodes);
 
-        REQUIRE(vm.debugger().getRegisterVx(0) == 0);
+        REQUIRE(vm.cpu().getRegisterVx(0) == 0);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == address1);
+        REQUIRE(vm.cpu().getProgramCounter() == address1);
     }
 
     SECTION("Jump with offset")
@@ -756,10 +794,10 @@ TEST_CASE("Jump to location plus V0 offset")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0) == offset);
+        REQUIRE(vm.cpu().getRegisterVx(0) == offset);
 
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (address2 + offset));
+        REQUIRE(vm.cpu().getProgramCounter() == (address2 + offset));
     }
 }
 
@@ -780,7 +818,7 @@ TEST_CASE("Generate random 8-bit number", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) < (mask1 + 1));
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) < (mask1 + 1));
     }
 
     SECTION("Generate with non base-2 modulo mask")
@@ -794,7 +832,7 @@ TEST_CASE("Generate random 8-bit number", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(vxIndex) < (mask2 - 4));
+        REQUIRE(vm.cpu().getRegisterVx(vxIndex) < (mask2 - 4));
     }
 }
 
@@ -823,17 +861,17 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        REQUIRE(vm.cpu().getRegisterVx(0) == x);
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(1) == y);
+        REQUIRE(vm.cpu().getRegisterVx(1) == y);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
+        REQUIRE(vm.cpu().getRegisterI() == START_DATA_ADDRESS);
 
         vm.gpu().spriteErased = true;
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x1);
 
         auto drawContext = vm.gpu().drawContext;
         REQUIRE(drawContext.x == x);
@@ -857,17 +895,17 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        REQUIRE(vm.cpu().getRegisterVx(0) == x);
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(1) == y);
+        REQUIRE(vm.cpu().getRegisterVx(1) == y);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
+        REQUIRE(vm.cpu().getRegisterI() == START_DATA_ADDRESS);
 
         vm.gpu().spriteErased = false;
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x0);
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x0);
 
         auto drawContext = vm.gpu().drawContext;
         REQUIRE(drawContext.x == x);
@@ -894,17 +932,17 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeCode(opcodes);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        REQUIRE(vm.cpu().getRegisterVx(0) == x);
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(1) == y);
+        REQUIRE(vm.cpu().getRegisterVx(1) == y);
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
+        REQUIRE(vm.cpu().getRegisterI() == START_DATA_ADDRESS);
 
         vm.gpu().spriteErased = true;
 
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(0xF) == 0x1);
+        REQUIRE(vm.cpu().getRegisterVx(0xF) == 0x1);
 
         auto drawContext = vm.gpu().drawContext;
         REQUIRE(drawContext.x == x);
@@ -933,7 +971,7 @@ TEST_CASE("Skip next instruction if key pressed", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
+        REQUIRE(vm.cpu().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
     }
 
     SECTION("Key is pressed")
@@ -951,7 +989,7 @@ TEST_CASE("Skip next instruction if key pressed", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
+        REQUIRE(vm.cpu().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
 
         vm.keyboard().releaseKey(key);
     }
@@ -976,7 +1014,7 @@ TEST_CASE("Skip next instruction if key is not pressed", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
+        REQUIRE(vm.cpu().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 6));
     }
 
     SECTION("Key is pressed")
@@ -994,7 +1032,7 @@ TEST_CASE("Skip next instruction if key is not pressed", "[opcode]")
 
         vm.run();
         vm.run();
-        REQUIRE(vm.debugger().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
+        REQUIRE(vm.cpu().getProgramCounter() == (chip8::Cpu::PROGRAM_START + 4));
 
         vm.keyboard().releaseKey(key);
     }
@@ -1015,10 +1053,10 @@ TEST_CASE("Load DT register to Vx register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == 0x00);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == 0x00);
 }
 
 TEST_CASE("Wait and load pressed key in Vx register")
@@ -1049,10 +1087,10 @@ TEST_CASE("Load Vx register to DT register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
     vm.run();
-    REQUIRE(vm.debugger().getDelayTimer() == expectedByte);
+    REQUIRE(vm.cpu().getDelayTimer() == expectedByte);
 }
 
 TEST_CASE("Load Vx to ST register", "[opcode]")
@@ -1070,10 +1108,10 @@ TEST_CASE("Load Vx to ST register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
     vm.run();
-    REQUIRE(vm.debugger().getSoundTimer() == expectedByte);
+    REQUIRE(vm.cpu().getSoundTimer() == expectedByte);
 }
 
 TEST_CASE("Add Vx to I register", "[opcode]")
@@ -1091,10 +1129,10 @@ TEST_CASE("Add Vx to I register", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == expectedByte);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == expectedByte);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == expectedByte);
+    REQUIRE(vm.cpu().getRegisterI() == expectedByte);
 }
 
 TEST_CASE("Load I with location of hexadecimal sprite", "[opcode]")
@@ -1102,16 +1140,20 @@ TEST_CASE("Load I with location of hexadecimal sprite", "[opcode]")
     auto vm = Chip8TestVm{};
 
     auto vxIndex = GENERATE(Catch::Generators::range(0x0, 0x10));
-    uint16_t expectedAddress = vxIndex << 3;
+    uint16_t expectedAddress = vxIndex * 5;
 
     auto opcodes = OpcodeList {
+        chip8::opcode::encode6XKK(vxIndex, vxIndex),
         chip8::opcode::encodeFX29(vxIndex)
     };
 
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == expectedAddress);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == vxIndex);
+
+    vm.run();
+    REQUIRE(vm.cpu().getRegisterI() == expectedAddress);
 }
 
 TEST_CASE("Store BCD representation of Vx in I, I+1, I+2 address", "[opcode]")
@@ -1132,9 +1174,9 @@ TEST_CASE("Store BCD representation of Vx in I, I+1, I+2 address", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterVx(vxIndex) == inputNumber);
+    REQUIRE(vm.cpu().getRegisterVx(vxIndex) == inputNumber);
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == BCD_ADDRESS);
+    REQUIRE(vm.cpu().getRegisterI() == BCD_ADDRESS);
 
     vm.run();
     REQUIRE(vm.loadData(BCD_ADDRESS) == expectedBcd[0]);
@@ -1177,14 +1219,14 @@ TEST_CASE("Store Vx register at location I", "[opcode]")
     for (size_t index = 0; index < 16; ++index)
     {
         vm.run();
-        REQUIRE(vm.debugger().getRegisterVx(index) == expectedByte);
+        REQUIRE(vm.cpu().getRegisterVx(index) == expectedByte);
     }
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == SAVE_ADDRESS);
+    REQUIRE(vm.cpu().getRegisterI() == SAVE_ADDRESS);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == (SAVE_ADDRESS + lastVxIndex + 1));
+    REQUIRE(vm.cpu().getRegisterI() == (SAVE_ADDRESS + lastVxIndex + 1));
 
     for (uint16_t index = 0; index < chip8::Cpu::REG_COUNT; ++index)
     {
@@ -1219,18 +1261,18 @@ TEST_CASE("Load Vx register from location I", "[opcode]")
     vm.storeCode(opcodes);
 
     vm.run();
-    REQUIRE(vm.debugger().getRegisterI() == SAVE_ADDRESS);
+    REQUIRE(vm.cpu().getRegisterI() == SAVE_ADDRESS);
 
     vm.run();
     for (uint16_t index = 0; index < chip8::Cpu::REG_COUNT; ++index)
     {
         if (index > lastVxIndex)
         {
-            REQUIRE(vm.debugger().getRegisterVx(index) == 0x00);
+            REQUIRE(vm.cpu().getRegisterVx(index) == 0x00);
         }
         else
         {
-            REQUIRE(vm.debugger().getRegisterVx(index) == expectedData[index]);
+            REQUIRE(vm.cpu().getRegisterVx(index) == expectedData[index]);
         }
     }
 }

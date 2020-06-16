@@ -46,13 +46,15 @@ class VirtualMachine
         void start();
 
     private:
+        void loadFontset();
+        void loadFile(std::string const& filename);
+
         SDL_Window * window_;
 
         std::shared_ptr<chip8::Gpu> gpu_;
         std::shared_ptr<chip8::Keyboard> keyboard_;
         std::shared_ptr<chip8::Memory> memory_;
         std::shared_ptr<chip8::Cpu> cpu_;
-        std::shared_ptr<chip8::Debugger> debugger_;
 };
 
 } // namespace chip8

@@ -20,8 +20,6 @@ add_executable(chip8
     src/gpu.cpp
     src/keyboard.hpp
     src/keyboard.cpp
-    src/debugger.hpp
-    src/debugger.cpp
 )
 
 message("${SDL2_INCLUDE_DIRS} ${SDL2_LIBRARIES}")
