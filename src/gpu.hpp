@@ -24,7 +24,6 @@
 #ifndef CHIP8_GPU_HPP
 #define CHIP8_GPU_HPP
 
-#include <array>
 #include <SDL2/SDL.h>
 
 #include <core.hpp>

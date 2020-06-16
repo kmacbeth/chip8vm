@@ -30,6 +30,7 @@
 #include <gpu.hpp>
 #include <keyboard.hpp>
 #include <cpu.hpp>
+#include <debugger.hpp>
 
 
 namespace chip8 {
@@ -51,6 +52,7 @@ class VirtualMachine
         std::shared_ptr<chip8::Keyboard> keyboard_;
         std::shared_ptr<chip8::Memory> memory_;
         std::shared_ptr<chip8::Cpu> cpu_;
+        std::shared_ptr<chip8::Debugger> debugger_;
 };
 
 } // namespace chip8

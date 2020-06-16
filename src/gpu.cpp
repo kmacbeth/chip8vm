@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <cstdio>
 #include <SDL2/SDL.h>
 
 #include <memory.hpp>
@@ -144,7 +145,10 @@ bool GpuImpl::drawSprite(uint8_t x, uint8_t y, Sprite const& sprite)
 
             currentPixel ^= spritePixel;
 
-            framebuffer_->setPixel(x + spriteX, y + spriteY, currentPixel);
+            uint8_t fbX = x + spriteX;
+            uint8_t fbY = y + spriteY;
+
+            framebuffer_->setPixel(fbX, fbY, currentPixel);
         }
     }
 

@@ -46,7 +46,7 @@ class Debugger : public Cpu
         Debugger(std::shared_ptr<Cpu> cpu, std::shared_ptr<Memory> memory);
         ~Debugger();
 
-        void setTraces(Traces traces) { traces_ = traces; }
+        void setTraces(uint16_t traces) { traces_ = traces; }
 
         uint16_t getProgramCounter() const { return regContext_.pc; }
         uint8_t  getRegisterVx(uint16_t vxIndex) const { return regContext_.vx[vxIndex]; }
@@ -55,8 +55,10 @@ class Debugger : public Cpu
         uint8_t  getDelayTimer()const { return regContext_.dt; }
         uint8_t  getSoundTimer() const { return regContext_.st; }
 
+        void tick(uint32_t tick) override;
         void reset() override;
-        void tick() override;
+        void update() override;
+        void updateTimer() override;
 
     private:
         Cpu::RegContext const& getRegContext() const override;
@@ -68,7 +70,7 @@ class Debugger : public Cpu
 
         std::shared_ptr<Cpu> cpu_;
         std::shared_ptr<Memory> memory_;
-        Traces traces_;
+        uint16_t traces_;
 
         Cpu::RegContext regContext_;
         opcode::Opcode opcode_;

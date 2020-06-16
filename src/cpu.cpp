@@ -33,6 +33,11 @@
 
 namespace chip8 {
 
+const uint32_t DELAY_TIMER_TICK_RATE = 60; // HZ
+const uint32_t DELAY_TIMER_TICK_DURATION = 1000 / DELAY_TIMER_TICK_RATE;
+const uint32_t SOUND_TIMER_TICK_RATE = 60; // HZ
+const uint32_t SOUND_TIMER_TICK_DURATION = 1000 / SOUND_TIMER_TICK_RATE;
+
 const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> CpuImpl::OpcodeDecoder::opcodeTable_ = {
     { opcode::OPCODE_00E0, &CpuImpl::opcodeClearDisplay },
     { opcode::OPCODE_00EE, &CpuImpl::opcodeReturn },
@@ -112,11 +117,14 @@ CpuImpl::CpuImpl(std::shared_ptr<Memory> memory,
     : memory_{ std::move(memory) }
     , keyboard_{ std::move(keyboard) }
     , gpu_{ std::move(gpu) }
-    , regs_{}
-    , opcodeDecoder_{this}
-    , opcode_{0x0000}
-    , randomizer_{}
-    , bitGenerator_{}
+    , regs_{ }
+    , opcodeDecoder_{ this }
+    , opcode_{ 0x0000 }
+    , tick_{ 0 }
+    , delayTimerTick_{ 0 }
+    , soundTimerTick_{ 0 }
+    , randomizer_{ }
+    , bitGenerator_{ }
 {
     resetRegisters();
 }
@@ -134,27 +142,34 @@ void CpuImpl::reset()
     resetRegisters();
 }
 
-/// @brief Process a cpu tick.
-void CpuImpl::tick()
+/// @brief Update a cpu tick.
+void CpuImpl::update()
 {
     opcode_ = memory_->load<opcode::Opcode>(regs_.pc);
-    regs_.pc += PC_INCR;
 
-    if (regs_.dt > 0)
+    regs_.pc += PC_INCR;
+    opcodeDecoder_.decode(opcode_);
+}
+
+/// @brief Update timer.
+void CpuImpl::updateTimer()
+{
+    uint32_t delayTimerElapsed = tick_ - delayTimerTick_;
+
+    if (delayTimerElapsed >= DELAY_TIMER_TICK_DURATION && regs_.dt > 0)
     {
         --regs_.dt;
     }
 
-    if (regs_.st > 0)
+    uint32_t soundTimerElapsed = tick_ - soundTimerTick_;
+
+    if (soundTimerElapsed >= SOUND_TIMER_TICK_DURATION && regs_.st > 0)
     {
         --regs_.st;
     }
-
-    opcodeDecoder_.decode(opcode_);
 }
 
 /// @brief Reset CPU registers
-/// Reset CPU states, such as program counter and registers.
 void CpuImpl::resetRegisters()
 {
     regs_.pc = PROGRAM_START;
@@ -170,6 +185,7 @@ void CpuImpl::resetRegisters()
 /// Opcode 00E0 (CLS)
 void CpuImpl::opcodeClearDisplay()
 {
+
     gpu_->clearFrame();
 }
 
@@ -420,7 +436,7 @@ void CpuImpl::opcodeDraw()
         sprite.push_back(memory_->load<uint8_t>(regs_.i + offset));
     }
 
-    if (gpu_->drawSprite(op.x, op.y, sprite))
+    if (gpu_->drawSprite(regs_.vx[op.x], regs_.vx[op.y], sprite))
     {
         regs_.vx[0xF] = 0x1;
     }

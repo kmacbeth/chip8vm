@@ -72,8 +72,10 @@ class Cpu
 
         virtual ~Cpu() {}
 
+        virtual void tick(uint32_t tick) = 0;
         virtual void reset() = 0;
-        virtual void tick() = 0;
+        virtual void update() = 0;
+        virtual void updateTimer() = 0;
 
         virtual RegContext const& getRegContext() const = 0;
         virtual opcode::Opcode    getOpcode() const = 0;
@@ -88,11 +90,13 @@ class CpuImpl : public Cpu
                 std::shared_ptr<Gpu> gpu);
         ~CpuImpl();
 
-        virtual void reset();
-        virtual void tick();
+        virtual void tick(uint32_t tick) override { tick_ = tick; }
+        virtual void reset() override;
+        virtual void update() override;
+        virtual void updateTimer () override;
 
-        RegContext const& getRegContext() const { return regs_; }
-        opcode::Opcode    getOpcode() const     { return opcode_; }
+        RegContext const& getRegContext() const override { return regs_; }
+        opcode::Opcode getOpcode() const override { return opcode_; }
 
     private:
         void resetRegisters();
@@ -163,6 +167,12 @@ class CpuImpl : public Cpu
         OpcodeDecoder opcodeDecoder_;
         /// @brief Current opcode.
         opcode::Opcode opcode_;
+        /// @brief CPU tick
+        uint32_t tick_;
+        /// @brief Delay Timer tick
+        uint32_t delayTimerTick_;
+        /// @brief Sound Timer tick
+        uint32_t soundTimerTick_;
 
         /// @brief Random number generator.
         std::uniform_int_distribution<uint8_t> randomizer_;

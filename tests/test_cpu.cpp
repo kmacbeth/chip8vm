@@ -63,7 +63,7 @@ class Chip8TestVm
 
         void run()
         {
-            debugger_->tick();
+            debugger_->update();
         }
 
         void setDebugTrace(chip8::Debugger::Traces traces)
@@ -814,11 +814,18 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeData(START_DATA_ADDRESS, sprite);
 
         auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(0, x),
+            chip8::opcode::encode6XKK(1, y),
             chip8::opcode::encodeANNN(START_DATA_ADDRESS),
-            chip8::opcode::encodeDXYN(x, y, sprite.size())
+            chip8::opcode::encodeDXYN(0, 1, sprite.size())
         };
 
         vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(1) == y);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
@@ -841,11 +848,18 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeData(START_DATA_ADDRESS, sprite);
 
         auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(0, x),
+            chip8::opcode::encode6XKK(1, y),
             chip8::opcode::encodeANNN(START_DATA_ADDRESS),
-            chip8::opcode::encodeDXYN(x, y, sprite.size())
+            chip8::opcode::encodeDXYN(0, 1, sprite.size())
         };
 
         vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(1) == y);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);
@@ -871,11 +885,18 @@ TEST_CASE("Draw sprite", "[opcode]")
         vm.storeData(START_DATA_ADDRESS, sprite);
 
         auto opcodes = OpcodeList {
+            chip8::opcode::encode6XKK(0, x),
+            chip8::opcode::encode6XKK(1, y),
             chip8::opcode::encodeANNN(START_DATA_ADDRESS),
-            chip8::opcode::encodeDXYN(x, y, sprite.size())
+            chip8::opcode::encodeDXYN(0, 1, sprite.size())
         };
 
         vm.storeCode(opcodes);
+
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(0) == x);
+        vm.run();
+        REQUIRE(vm.debugger().getRegisterVx(1) == y);
 
         vm.run();
         REQUIRE(vm.debugger().getRegisterI() == START_DATA_ADDRESS);

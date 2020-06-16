@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 #include <cstdio>
+#include <iostream>
 #include <unistd.h>
 
 #include "virtual_machine.hpp"
@@ -29,6 +30,31 @@
 
 namespace chip8 {
 
+namespace {
+
+/// @brief Fontset sprites.
+uint8_t FONT_SET[] = {
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // Character 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // Character 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // Character 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // Character 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // Character 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // Character 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // Character 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // Character 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // Character 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // Character 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // Character A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // Character B
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // Character C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // Character D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // Character E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // Character F
+};
+
+const std::size_t FONT_SET_SIZE = sizeof(FONT_SET) / sizeof(FONT_SET[0]);
+
+} // namespace
 
 /// @brief Construct a CHIP-8 VM instance.
 VirtualMachine::VirtualMachine()
@@ -95,8 +121,13 @@ bool VirtualMachine::initialize(int argc, char * argv[])
     keyboard_ = std::make_shared<chip8::KeyboardImpl>();
     memory_ = std::make_shared<chip8::Memory>(chip8::SYSTEM_MEMORY_SIZE);
     cpu_ = std::make_shared<chip8::CpuImpl>(memory_, keyboard_, gpu_);
+    debugger_ = std::make_shared<chip8::Debugger>(cpu_, memory_);
 
-    // TODO: add font table to memory (0 to 79 address)
+    // Add font table to memory (0 to 79 address)
+    for (std::size_t fontAddress = 0; fontAddress < FONT_SET_SIZE; ++fontAddress)
+    {
+        memory_->store(fontAddress, FONT_SET[fontAddress]);
+    }
 
     // Load file into memory at START_ADDRESS
     std::FILE * programFile = std::fopen(filename.c_str(), "rb");
@@ -120,25 +151,33 @@ bool VirtualMachine::initialize(int argc, char * argv[])
 /// @brief Start the virtual machine.
 void VirtualMachine::start()
 {
-    const uint32_t FRAME_DURATION = 60;
+    const uint32_t FRAME_RATE = 60;
+    const uint32_t FRAME_DURATION = 1000 / FRAME_RATE;
+
+    debugger_->setTraces(Debugger::Traces::OPCODE | Debugger::Traces::REGISTERS);
 
     gpu_->clearFrame();
+    cpu_->reset();
+
+    uint32_t gpuTick = SDL_GetTicks();
 
     while (!keyboard_->isQuitRequested())
     {
-        uint32_t startTick = SDL_GetTicks();
-
-        // TODO: add cpu
+        debugger_->tick(SDL_GetTicks());
+        debugger_->update();
+        debugger_->updateTimer();
 
         keyboard_->update();
-        gpu_->draw();
 
-        uint32_t currentDuration = SDL_GetTicks() - startTick;
+        uint32_t gpuTimeElapsed = SDL_GetTicks() - gpuTick;
 
-        if (currentDuration < FRAME_DURATION)
+        if (gpuTimeElapsed >= FRAME_DURATION)
         {
-            SDL_Delay(FRAME_DURATION - currentDuration);
+            gpu_->draw();
+            gpuTick = SDL_GetTicks();
         }
+
+        SDL_Delay(1);
     }
 }
 
