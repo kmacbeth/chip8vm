@@ -152,6 +152,7 @@ void VirtualMachine::start()
 
     gpu_->clearFrame();
     cpu_->reset();
+    cpu_->enableTraces();
 
     uint32_t gpuTick = SDL_GetTicks();
 

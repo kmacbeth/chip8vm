@@ -24,6 +24,7 @@
 #ifndef CHIP8_OPCODE_HPP
 #define CHIP8_OPCODE_HPP
 
+#include <cstdio>
 #include <core.hpp>
 
 namespace chip8 {
@@ -70,6 +71,26 @@ enum OpcodeEncoding
     OPCODE_FX55 = 0xF055,
     OPCODE_FX65 = 0xF065
 };
+
+/// @brief Decode instruction from opcode.
+///
+/// @param opcode  Opcode.
+/// @return Decoded instruction.
+inline Opcode decodeInstruction(Opcode opcode)
+{
+    uint16_t decodedOpcode = opcode & 0xF000;
+
+    if (decodedOpcode == 0x0000 || decodedOpcode == 0xE000 || decodedOpcode == 0xF000)
+    {
+        decodedOpcode |= (opcode & 0x00FF);
+    }
+    else if (decodedOpcode == 0x5000 | decodedOpcode == 0x8000 || decodedOpcode == 0x9000)
+    {
+        decodedOpcode |= (opcode & 0x000F);
+    }
+
+    return decodedOpcode;
+}
 
 /// @brief Operands register Vx.
 struct OperandsX
@@ -154,6 +175,7 @@ struct Operand
 
     template<typename OP>
     static OP split(Opcode opcode);
+
 };
 
 /// @brief Join Vx.
@@ -260,6 +282,148 @@ inline Operand::NNN Operand::split(Opcode opcode)
     return Operand::NNN(opcode & 0xFFF);
 }
 
+/// @brief Trace opcode.
+///
+/// @param opcode Opcode.
+inline void traceOpcode(Opcode opcode)
+{
+    std::printf("Opcode: 0x%04X | Instruction: 0x%04X", opcode, decodeInstruction(opcode));
+}
+
+/// @brief Trace separator.
+inline void traceSeparator()
+{
+    std::printf(" | ");
+}
+
+/// @brief Trace operand X.
+///
+/// @param op X operand.
+inline void traceOperandX(Operand::X const& op)
+{
+    std::printf("X = %01X", op.x);
+}
+
+/// @brief Trace operand XKK.
+///
+/// @param op XKK operand.
+inline void traceOperandXKK(Operand::XKK const& op)
+{
+    traceOperandX(op);
+    traceSeparator();
+
+    std::printf("KK = %u", op.kk);
+}
+
+/// @brief Trace operand XY.
+///
+/// @param op XY operand.
+inline void traceOperandXY(Operand::XY const& op)
+{
+    traceOperandX(op);
+    traceSeparator();
+
+    std::printf("Y = %01X", op.y);
+}
+
+/// @brief Trace operand XYN.
+///
+/// @param op XYN operand.
+inline void traceOperandXYN(Operand::XYN const& op)
+{
+    traceOperandXY(op);
+    traceSeparator();
+
+    std::printf("N = %u", op.n);
+}
+
+/// @brief Trace operand NNN.
+///
+/// @param op NNN operand.
+inline void traceOperandNNN(Operand::NNN const& op)
+{
+    std::printf("NNN = 0x%03X", op.nnn);
+}
+
+/// @brief Trace opcode.
+///
+/// @param opcode Opcode.
+inline void trace(Opcode opcode)
+{
+    traceOpcode(opcode);
+    std::puts("");
+}
+
+/// @brief Trace operand.
+///
+/// @param op XYN operand.
+template<typename OP>
+void trace(Opcode opcode, OP const& op);
+
+/// @brief Trace opcode with operand X.
+///
+/// @param opcode Opcode.
+/// @param op X operand.
+template<>
+inline void trace(Opcode opcode, Operand::X const& op)
+{
+    traceOpcode(opcode);
+    traceSeparator();
+    traceOperandX(op);
+    std::puts("");
+}
+
+/// @brief Trace opcode with operand XKK.
+///
+/// @param opcode Opcode.
+/// @param op XKK operand.
+template<>
+inline void trace(Opcode opcode, Operand::XKK const& op)
+{
+    traceOpcode(opcode);
+    traceSeparator();
+    traceOperandXKK(op);
+    std::puts("");
+}
+
+/// @brief Trace opcode with operand XY.
+///
+/// @param opcode Opcode.
+/// @param op XY operand.
+template<>
+inline void trace(Opcode opcode, Operand::XY const& op)
+{
+    traceOpcode(opcode);
+    traceSeparator();
+    traceOperandXY(op);
+    std::puts("");
+}
+
+/// @brief Trace opcode with operand XYN.
+///
+/// @param opcode Opcode.
+/// @param op XYN operand.
+template<>
+inline void trace(Opcode opcode, Operand::XYN const& op)
+{
+    traceOpcode(opcode);
+    traceSeparator();
+    traceOperandXYN(op);
+    std::puts("");
+}
+
+/// @brief Trace opcode with operand NNN.
+///
+/// @param opcode Opcode.
+/// @param op NNN operand.
+template<>
+inline void trace(Opcode opcode, Operand::NNN const& op)
+{
+    traceOpcode(opcode);
+    traceSeparator();
+    traceOperandNNN(op);
+    std::puts("");
+}
 
 /// @brief Encode opcode 00E0
 ///

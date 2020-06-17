@@ -29,16 +29,21 @@
 #include <gpu.hpp>
 #include <keyboard.hpp>
 #include "cpu.hpp"
+#include "cpu_trace.hpp"
 
 
 namespace chip8 {
+
+namespace {
 
 const uint32_t DELAY_TIMER_TICK_RATE = 60; // HZ
 const uint32_t DELAY_TIMER_TICK_DURATION = 1000 / DELAY_TIMER_TICK_RATE;
 const uint32_t SOUND_TIMER_TICK_RATE = 60; // HZ
 const uint32_t SOUND_TIMER_TICK_DURATION = 1000 / SOUND_TIMER_TICK_RATE;
 
-const std::unordered_map<opcode::Opcode, CpuImpl::OpcodeDecoder::OpcodeFunc> CpuImpl::OpcodeDecoder::opcodeTable_ = {
+} // namespace
+
+const CpuImpl::OpcodeDecoder::InstructionTable CpuImpl::OpcodeDecoder::INSTRUCTION_TABLE = {
     { opcode::OPCODE_00E0, &CpuImpl::opcodeClearDisplay },
     { opcode::OPCODE_00EE, &CpuImpl::opcodeReturn },
     { opcode::OPCODE_1NNN, &CpuImpl::opcodeJump },
@@ -87,22 +92,13 @@ CpuImpl::OpcodeDecoder::OpcodeDecoder(CpuImpl * cpu)
 /// @param opcode Opcode to decode and execute.
 void CpuImpl::OpcodeDecoder::decode(opcode::Opcode opcode)
 {
-    uint16_t decodedOpcode = opcode & 0xF000;
+    uint16_t decodedInstruction = opcode::decodeInstruction(opcode);
 
-    if (decodedOpcode == 0x0000 || decodedOpcode == 0xE000 || decodedOpcode == 0xF000)
-    {
-        decodedOpcode |= (opcode & 0x00FF);
-    }
-    else if (decodedOpcode == 0x5000 | decodedOpcode == 0x8000 || decodedOpcode == 0x9000)
-    {
-        decodedOpcode |= (opcode & 0x000F);
-    }
+    auto instructionIterator = INSTRUCTION_TABLE.find(decodedInstruction);
 
-    auto opcodeIterator = opcodeTable_.find(decodedOpcode);
-
-    if (opcodeIterator != opcodeTable_.end())
+    if (instructionIterator != INSTRUCTION_TABLE.end())
     {
-        (cpu_->*(opcodeIterator->second))();
+        (cpu_->*(instructionIterator->second))();
     }
 }
 
@@ -187,7 +183,7 @@ void CpuImpl::resetRegisters()
 /// Opcode 00E0 (CLS)
 void CpuImpl::opcodeClearDisplay()
 {
-
+    CpuTrace trace(tracesEnabled_, this, opcode_, CpuTrace::NONE);
     gpu_->clearFrame();
 }
 
@@ -196,6 +192,8 @@ void CpuImpl::opcodeClearDisplay()
 /// Opcode 00EE (RET)
 void CpuImpl::opcodeReturn()
 {
+    CpuTrace trace(tracesEnabled_, this, opcode_, CpuTrace::PC | CpuTrace::SP | CpuTrace::STACK);
+
     if (regs_.sp > 0)
     {
         --regs_.sp;
@@ -209,7 +207,11 @@ void CpuImpl::opcodeReturn()
 /// Opcode 1NNN (jp addr)
 void CpuImpl::opcodeJump()
 {
-    regs_.pc = opcode::decode1NNN(opcode_).nnn;
+    auto op = opcode::decode1NNN(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC);
+
+    regs_.pc = op.nnn;
 }
 
 /// @brief Return from subroutine.
@@ -217,8 +219,12 @@ void CpuImpl::opcodeJump()
 /// Opcode 2NNN (call addr)
 void CpuImpl::opcodeCall()
 {
+    auto op = opcode::decode2NNN(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::SP | CpuTrace::STACK);
+
     regs_.stack[regs_.sp++] = regs_.pc;
-    regs_.pc = opcode::decode2NNN(opcode_).nnn;
+    regs_.pc = op.nnn;
 }
 
 /// @brief Skip next opcode if equals byte.
@@ -227,6 +233,8 @@ void CpuImpl::opcodeCall()
 void CpuImpl::opcodeSkipNextIfEquals()
 {
     auto op = opcode::decode3XKK(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
 
     if (regs_.vx[op.x] == op.kk)
     {
@@ -241,6 +249,8 @@ void CpuImpl::opcodeSkipNextIfNotEquals()
 {
     auto op = opcode::decode4XKK(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
+
     if (regs_.vx[op.x] != op.kk)
     {
         regs_.pc += 2;
@@ -253,6 +263,8 @@ void CpuImpl::opcodeSkipNextIfNotEquals()
 void CpuImpl::opcodeSkipNextIfEqualsRegister()
 {
     auto op = opcode::decode5XY0(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
 
     if (regs_.vx[op.x] == regs_.vx[op.y])
     {
@@ -267,6 +279,8 @@ void CpuImpl::opcodeLoadNumber()
 {
     auto op = opcode::decode6XKK(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[op.x] = op.kk;
 }
 
@@ -276,6 +290,8 @@ void CpuImpl::opcodeLoadNumber()
 void CpuImpl::opcodeAddNumber()
 {
     auto op = opcode::decode7XKK(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     regs_.vx[op.x] += op.kk;
 }
@@ -287,6 +303,8 @@ void CpuImpl::opcodeLoadRegister()
 {
     auto op = opcode::decode8XY0(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[op.x] = regs_.vx[op.y];
 }
 
@@ -296,6 +314,8 @@ void CpuImpl::opcodeLoadRegister()
 void CpuImpl::opcodeOrRegister()
 {
     auto op = opcode::decode8XY1(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     regs_.vx[op.x] |= regs_.vx[op.y];
 }
@@ -307,6 +327,8 @@ void CpuImpl::opcodeAndRegister()
 {
     auto op = opcode::decode8XY2(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[op.x] &= regs_.vx[op.y];
 }
 
@@ -317,6 +339,8 @@ void CpuImpl::opcodeXorRegister()
 {
     auto op = opcode::decode8XY3(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[op.x] ^= regs_.vx[op.y];
 }
 
@@ -326,6 +350,8 @@ void CpuImpl::opcodeXorRegister()
 void CpuImpl::opcodeAddRegister()
 {
     auto op = opcode::decode8XY4(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     uint16_t sum = regs_.vx[op.x] + regs_.vx[op.y];
 
@@ -340,6 +366,8 @@ void CpuImpl::opcodeSubRegister()
 {
     auto op = opcode::decode8XY5(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     uint16_t difference = regs_.vx[op.x] - regs_.vx[op.y];
 
     regs_.vx[0xF] = (regs_.vx[op.x] > regs_.vx[op.y]);
@@ -353,6 +381,8 @@ void CpuImpl::opcodeShrRegister()
 {
     auto op = opcode::decode8XY6(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[0xF] = regs_.vx[op.y] & 0x1;
     regs_.vx[op.x] = regs_.vx[op.y] >> 1;
 }
@@ -363,6 +393,8 @@ void CpuImpl::opcodeShrRegister()
 void CpuImpl::opcodeSubnRegister()
 {
     auto op = opcode::decode8XY7(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     uint16_t difference = regs_.vx[op.y] - regs_.vx[op.x];
 
@@ -377,6 +409,8 @@ void CpuImpl::opcodeShlRegister()
 {
     auto op = opcode::decode8XY6(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
+
     regs_.vx[0xF] = regs_.vx[op.y] & 0x80;
     regs_.vx[op.x] = regs_.vx[op.y] << 1;
 }
@@ -387,6 +421,8 @@ void CpuImpl::opcodeShlRegister()
 void CpuImpl::opcodeSkipNextIfNotEqualsRegister()
 {
     auto op = opcode::decode9XY0(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     if (regs_.vx[op.x] != regs_.vx[op.y])
     {
@@ -399,7 +435,11 @@ void CpuImpl::opcodeSkipNextIfNotEqualsRegister()
 /// Opcode Annn (LD I,addr)
 void CpuImpl::opcodeLoadIRegister()
 {
-    regs_.i = opcode::decodeANNN(opcode_).nnn;
+    auto op = opcode::decodeANNN(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I);
+
+    regs_.i = op.nnn;
 }
 
 /// @brief Jump to address with offset.
@@ -408,6 +448,8 @@ void CpuImpl::opcodeLoadIRegister()
 void CpuImpl::opcodeJumpOffset()
 {
     auto op = opcode::decodeBNNN(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
 
     regs_.pc = op.nnn + regs_.vx[0];
 }
@@ -418,6 +460,8 @@ void CpuImpl::opcodeJumpOffset()
 void CpuImpl::opcodeRandomNumber()
 {
     auto op = opcode::decodeCXKK(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX);
 
     uint8_t number = randomizer_(bitGenerator_);
 
@@ -432,6 +476,8 @@ void CpuImpl::opcodeDraw()
     auto op = opcode::decodeDXYN(opcode_);
 
     auto sprite = Memory::Bytes{};
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
 
     for (size_t offset = 0; offset < op.n; ++offset)
     {
@@ -451,6 +497,8 @@ void CpuImpl::opcodeSkipNextIfKeyEqualsRegister()
 {
     auto op = opcode::decodeEX9E(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
+
     if (keyboard_->isKeyPressed(regs_.vx[op.x]))
     {
         regs_.pc += 2;
@@ -463,6 +511,8 @@ void CpuImpl::opcodeSkipNextIfKeyEqualsRegister()
 void CpuImpl::opcodeSkipNextIfKeyNotEqualsRegister()
 {
     auto op = opcode::decodeEXA1(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::PC | CpuTrace::VX);
 
     if (!keyboard_->isKeyPressed(regs_.vx[op.x]))
     {
@@ -477,6 +527,8 @@ void CpuImpl::opcodeLoadDelayTimerFromRegister()
 {
     auto op = opcode::decodeFX15(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX | CpuTrace::DT);
+
     regs_.dt = regs_.vx[op.x];
 }
 
@@ -486,6 +538,8 @@ void CpuImpl::opcodeLoadDelayTimerFromRegister()
 void CpuImpl::opcodeLoadRegisterFromDelayTimer()
 {
     auto op = opcode::decodeFX07(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX | CpuTrace::DT);
 
     regs_.vx[op.x] = regs_.dt;
 }
@@ -497,6 +551,8 @@ void CpuImpl::opcodeLoadSoundTimerFromRegister()
 {
     auto op = opcode::decodeFX18(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::VX | CpuTrace::ST);
+
     regs_.st = regs_.vx[op.x];
 }
 
@@ -507,6 +563,8 @@ void CpuImpl::opcodeAddIRegister()
 {
     auto op = opcode::decodeFX1E(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
+
     regs_.i += regs_.vx[op.x];
 }
 
@@ -516,6 +574,8 @@ void CpuImpl::opcodeAddIRegister()
 void CpuImpl::opcodeLoadIRegisterWithAddress()
 {
     auto op = opcode::decodeFX29(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
 
     auto font = regs_.vx[op.x];
 
@@ -530,6 +590,8 @@ void CpuImpl::opcodeStoreBinaryCodedDecimal()
     const uint16_t MAX_ADDRESS_OFFSET = 3;
 
     auto op = opcode::decodeFX33(opcode_);
+
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
 
     auto address = regs_.i;
     auto data = regs_.vx[op.x];
@@ -548,6 +610,8 @@ void CpuImpl::opcodeStoreRegistersWithAddress()
 {
     auto op = opcode::decodeFX55(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
+
     for (uint16_t index = 0; index <= op.x; ++index)
     {
         memory_->store(regs_.i++, regs_.vx[index]);
@@ -561,11 +625,12 @@ void CpuImpl::opcodeLoadRegistersWithAddress()
 {
     auto op = opcode::decodeFX65(opcode_);
 
+    CpuTrace trace(tracesEnabled_, this, opcode_, op, CpuTrace::I | CpuTrace::VX);
+
     for (uint16_t index = 0; index <= op.x; ++index)
     {
         regs_.vx[index] = memory_->load<uint8_t>(regs_.i++);
     }
 }
 
-
-}  // chip8
+} // namespace chip8

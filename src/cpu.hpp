@@ -76,6 +76,8 @@ class Cpu
         virtual void reset() = 0;
         virtual void update() = 0;
 
+        virtual void enableTraces() = 0;
+        virtual void disableTraces() = 0;
         virtual RegContext const& getRegContext() const = 0;
         virtual opcode::Opcode    getOpcode() const = 0;
 };
@@ -93,6 +95,8 @@ class CpuImpl : public Cpu
         virtual void reset() override;
         virtual void update() override;
 
+        void enableTraces() override { tracesEnabled_ = true; }
+        void disableTraces() override { tracesEnabled_ = false; }
         RegContext const& getRegContext() const override { return regs_; }
         opcode::Opcode getOpcode() const override { return opcode_; }
 
@@ -109,10 +113,11 @@ class CpuImpl : public Cpu
                 void decode(opcode::Opcode opcode);
 
             private:
-                using OpcodeFunc = void (CpuImpl::*)();
+                using InstructionFunc = void (CpuImpl::*)();
+                using InstructionTable = std::unordered_map<opcode::Opcode, InstructionFunc>;
 
                 /// @brief Opcode dispatch table.
-                static const std::unordered_map<opcode::Opcode, OpcodeFunc> opcodeTable_;
+                static const InstructionTable INSTRUCTION_TABLE;
 
                 /// @brief Reference to cpu instance.
                 CpuImpl * cpu_;
@@ -177,6 +182,9 @@ class CpuImpl : public Cpu
         /// @brief Random number generator.
         std::uniform_int_distribution<uint8_t> randomizer_;
         std::mt19937 bitGenerator_;
+
+        /// @brief Enable traces.
+        bool tracesEnabled_ = false;
 };
 
 }  // chip8
